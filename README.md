@@ -1,0 +1,724 @@
+# Terraform Provider for Quismon
+
+The Quismon Terraform provider allows you to manage your monitoring infrastructure as code.
+
+## Features
+
+- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, and SSL health checks
+- **Alert Rules**: Configure alert conditions using flexible condition maps
+- **Notification Channels**: Set up email, ntfy, webhook, and Slack notifications
+- **Data Sources**: Query existing checks and channels
+- **Multi-Region Monitoring**: Deploy checks across multiple geographic regions
+
+## Requirements
+
+- Terraform >= 1.0
+- Go >= 1.21 (for building from source)
+- Quismon API key
+
+## Installation
+
+### Using Terraform Registry (Once Published)
+
+```hcl
+terraform {
+  required_providers {
+    quismon = {
+      source  = "quismon/quismon"
+      version = "~> 1.0"
+    }
+  }
+}
+```
+
+### Building From Source
+
+```bash
+git clone https://github.com/quismon/terraform-provider-quismon
+cd terraform-provider-quismon
+go build -o terraform-provider-quismon
+mkdir -p ~/.terraform.d/plugins/registry.terraform.io/quismon/quismon/1.0.0/linux_amd64/
+mv terraform-provider-quismon ~/.terraform.d/plugins/registry.terraform.io/quismon/quismon/1.0.0/linux_amd64/
+```
+
+## Authentication
+
+Obtain an API key from the Quismon dashboard, then configure the provider:
+
+```hcl
+provider "quismon" {
+  api_key  = var.quismon_api_key  # Or use QUISMON_API_KEY env var
+  base_url = "https://api.quismon.com"  # Optional, defaults to this
+}
+```
+
+Environment variables:
+- `QUISMON_API_KEY` - API key for authentication
+- `QUISMON_BASE_URL` - API base URL (optional)
+
+## Seamless Quickstart (Self-Service Signup)
+
+The Quismon provider supports a **zero-configuration quickstart** for new users. If you don't have an API key yet, you can create a new organization directly from Terraform:
+
+```hcl
+terraform {
+  required_providers {
+    quismon = {
+      source  = "quismon/quismon"
+      version = "~> 1.0"
+    }
+  }
+}
+
+# Create a new organization (no API key needed!)
+resource "quismon_signup" "main" {
+  email    = "your-email@example.com"
+  org_name = "My Organization"
+}
+
+# Create checks - provider automatically reads API key from state
+resource "quismon_check" "website" {
+  name             = "My Website"
+  type             = "https"
+  interval_seconds = 300
+  enabled          = true
+
+  config = {
+    url             = "https://example.com"
+    method          = "GET"
+    expected_status = "200"
+  }
+
+  regions = ["us-east-1"]
+}
+
+output "api_key" {
+  value     = quismon_signup.main.api_key
+  sensitive = true
+}
+```
+
+### How It Works
+
+The provider automatically detects when:
+
+1. No `api_key` is configured in the provider block
+2. No `QUISMON_API_KEY` environment variable is set
+3. A `quismon_signup` resource exists in the terraform state
+
+When these conditions are met, it reads the API key directly from the state file, allowing seamless operation after the initial signup.
+
+### Usage Flow
+
+```bash
+# Phase 1: Create signup (first time only)
+terraform apply -target=quismon_signup.main -auto-approve
+
+# Phase 2: Create all resources (no API key needed!)
+terraform apply -auto-approve
+```
+
+When reading from state, you'll see a helpful warning:
+
+```
+│ Warning: API Key Read from Terraform State
+│
+│ Using API key from terraform state (.../terraform.tfstate).
+│
+│ 💡 Tip: For future runs, export the key:
+│    export QUISMON_API_KEY=$(terraform output -raw api_key)
+│
+│ 📧 Verify your email to increase your free tier check frequency from 20/hr to 60/hr!
+```
+
+### Best Practices for CI/CD
+
+For automated environments, extract the API key after initial signup:
+
+```bash
+# After initial signup
+export QUISMON_API_KEY=$(terraform output -raw api_key)
+
+# Store in your secrets manager (GitHub Actions, Vault, etc.)
+# Subsequent runs will use the environment variable
+terraform apply -auto-approve  # No warning when key is from env
+```
+
+### Destroy Considerations
+
+When destroying resources, export the API key first to ensure all resources can be deleted:
+
+```bash
+export QUISMON_API_KEY=$(terraform output -raw api_key)
+terraform destroy
+```
+
+## Quick Start Example
+
+```hcl
+terraform {
+  required_providers {
+    quismon = {
+      source  = "quismon/quismon"
+      version = "~> 1.0"
+    }
+  }
+}
+
+provider "quismon" {
+  api_key = var.quismon_api_key
+}
+
+# Create a Slack notification channel
+resource "quismon_notification_channel" "slack" {
+  name = "Slack Alerts"
+  type = "slack"
+
+  config = {
+    webhook_url = var.slack_webhook_url
+  }
+}
+
+# Monitor production API
+resource "quismon_check" "production_api" {
+  name             = "Production API Health"
+  type             = "https"
+  interval_seconds = 60
+  enabled          = true
+
+  regions = ["us-east-1", "eu-west-1"]
+
+  config = {
+    url                  = "https://api.example.com/health"
+    method               = "GET"
+    expected_status_code = "200"
+    timeout_seconds      = "10"
+  }
+}
+
+# Alert when API is down
+resource "quismon_alert_rule" "api_down" {
+  check_id = quismon_check.production_api.id
+  name     = "Production API Down"
+  enabled  = true
+
+  condition = {
+    health_status = "down"
+  }
+
+  notification_channel_ids = [
+    quismon_notification_channel.slack.id
+  ]
+}
+
+# Alert on 3 consecutive failures
+resource "quismon_alert_rule" "consecutive_failures" {
+  check_id = quismon_check.production_api.id
+  name     = "API Consecutive Failures"
+  enabled  = true
+
+  condition = {
+    failure_threshold = 3
+  }
+
+  notification_channel_ids = [
+    quismon_notification_channel.slack.id
+  ]
+}
+```
+
+## Check Types
+
+### HTTP/HTTPS Check
+
+```hcl
+resource "quismon_check" "web_app" {
+  name             = "Web Application"
+  type             = "https"
+  interval_seconds = 60
+  enabled          = true
+
+  regions = ["us-east-1", "eu-west-1", "ap-southeast-1"]
+
+  config = {
+    url                  = "https://www.example.com"
+    method               = "GET"
+    expected_status_code = "200"
+    timeout_seconds      = "15"
+    headers              = jsonencode({
+      "User-Agent" = "Quismon-Monitor/1.0"
+      "X-API-Key"  = var.api_key
+    })
+  }
+}
+```
+
+### TCP Port Check
+
+```hcl
+resource "quismon_check" "redis_server" {
+  name             = "Redis Cache"
+  type             = "tcp"
+  interval_seconds = 90
+
+  config = {
+    host            = "cache.example.com"
+    port            = "6379"
+    timeout_seconds = "5"
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+### Ping Check
+
+```hcl
+resource "quismon_check" "dns_server" {
+  name             = "Primary DNS"
+  type             = "ping"
+  interval_seconds = 180
+
+  config = {
+    host            = "8.8.8.8"
+    timeout_seconds = "3"
+    packet_count    = "4"
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+### DNS Check
+
+```hcl
+resource "quismon_check" "dns_a_record" {
+  name             = "Main Domain A Record"
+  type             = "dns"
+  interval_seconds = 300
+
+  config = {
+    domain       = "example.com"
+    record_type  = "A"
+    expected_ips = jsonencode(["93.184.216.34"])
+  }
+
+  regions = ["us-east-1"]
+}
+
+# DNS MX Record Check
+resource "quismon_check" "dns_mx_record" {
+  name             = "Mail Exchange Records"
+  type             = "dns"
+  interval_seconds = 300
+
+  config = {
+    domain      = "example.com"
+    record_type = "MX"
+  }
+
+  regions = ["us-east-1"]
+}
+
+# DNS TXT Record Check
+resource "quismon_check" "dns_spf" {
+  name             = "SPF Record"
+  type             = "dns"
+  interval_seconds = 3600
+
+  config = {
+    domain      = "example.com"
+    record_type = "TXT"
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+**DNS Record Types**: `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SOA`
+
+### SSL Certificate Check
+
+```hcl
+resource "quismon_check" "ssl_cert" {
+  name             = "API Certificate Expiry"
+  type             = "ssl"
+  interval_seconds = 3600  # Check every hour
+
+  config = {
+    domain              = "api.example.com"
+    port                = 443
+    warn_days_remaining = 30
+  }
+
+  regions = ["us-east-1"]
+}
+
+# SSL Certificate with Fingerprint Validation
+resource "quismon_check" "ssl_cert_fingerprint" {
+  name             = "Critical API Certificate"
+  type             = "ssl"
+  interval_seconds = 3600
+
+  config = {
+    domain                    = "critical.example.com"
+    port                      = 443
+    warn_days_remaining       = 30
+    expected_fingerprint_sha256 = "abc123def456..."  # SHA-256 fingerprint
+  }
+
+  regions = ["us-east-1"]
+}
+
+# SSL Certificate with SAN Domain Validation
+resource "quismon_check" "ssl_cert_san" {
+  name             = "Multi-Domain Certificate"
+  type             = "ssl"
+  interval_seconds = 3600
+
+  config = {
+    domain              = "secure.example.com"
+    port                = 443
+    warn_days_remaining = 30
+    expected_domains    = jsonencode([
+      "secure.example.com",
+      "www.secure.example.com",
+      "api.secure.example.com"
+    ])
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+## Alert Rule Conditions
+
+Alert rules use a flexible `condition` map that supports different trigger types:
+
+### Health Status Condition
+
+Triggers when the health status changes:
+
+```hcl
+resource "quismon_alert_rule" "downtime" {
+  check_id = quismon_check.production_api.id
+  name     = "Service Down"
+  enabled  = true
+
+  condition = {
+    health_status = "down"
+  }
+
+  notification_channel_ids = [quismon_notification_channel.slack.id]
+}
+```
+
+### Failure Threshold Condition
+
+Triggers after N consecutive failures:
+
+```hcl
+resource "quismon_alert_rule" "failures" {
+  check_id = quismon_check.production_api.id
+  name     = "Multiple Failures"
+  enabled  = true
+
+  condition = {
+    failure_threshold = 3
+  }
+
+  notification_channel_ids = [quismon_notification_channel.slack.id]
+}
+```
+
+### Response Time Condition
+
+Triggers when response time exceeds threshold (milliseconds):
+
+```hcl
+resource "quismon_alert_rule" "latency" {
+  check_id = quismon_check.production_api.id
+  name     = "High Latency"
+  enabled  = true
+
+  condition = {
+    response_time_ms = 2000  # 2 seconds
+  }
+
+  notification_channel_ids = [quismon_notification_channel.slack.id]
+}
+```
+
+## Notification Channels
+
+### Email
+
+```hcl
+resource "quismon_notification_channel" "email" {
+  name = "Engineering Team"
+  type = "email"
+
+  config = {
+    to = jsonencode(["dev@example.com", "ops@example.com"])
+  }
+
+  enabled = true
+}
+```
+
+### ntfy
+
+```hcl
+resource "quismon_notification_channel" "ntfy" {
+  name = "Mobile Notifications"
+  type = "ntfy"
+
+  config = {
+    topic  = "quismon-alerts"
+    server = "https://ntfy.sh"  # Optional, defaults to ntfy.sh
+  }
+
+  enabled = true
+}
+```
+
+### Webhook
+
+```hcl
+resource "quismon_notification_channel" "webhook" {
+  name = "Custom Webhook"
+  type = "webhook"
+
+  config = {
+    url    = "https://your-service.com/webhooks/alerts"
+    method = "POST"
+  }
+
+  enabled = true
+}
+```
+
+### Slack
+
+```hcl
+resource "quismon_notification_channel" "slack" {
+  name = "Slack #alerts"
+  type = "slack"
+
+  config = {
+    webhook_url = var.slack_webhook_url
+  }
+
+  enabled = true
+}
+```
+
+## Resource Reference
+
+### quismon_signup
+
+Creates a new Quismon organization via self-service signup. No API key is required for this resource.
+
+#### Arguments
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `email` | String | Yes | Email address for the organization |
+| `org_name` | String | Yes | Name of the organization |
+
+#### Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | String | Organization ID |
+| `org_id` | String | Organization ID (same as id) |
+| `org_name` | String | Organization name |
+| `email` | String | Email address |
+| `api_key` | String | API key for the organization (sensitive) |
+| `verification_required` | Boolean | Whether email verification is required |
+
+#### Example
+
+```hcl
+resource "quismon_signup" "main" {
+  email    = "admin@company.com"
+  org_name = "Acme Corp"
+}
+
+output "api_key" {
+  value     = quismon_signup.main.api_key
+  sensitive = true
+}
+```
+
+### quismon_check
+
+#### Arguments
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | String | Yes | Check name |
+| `type` | String | Yes | Check type: `http`, `https`, `tcp`, `ping`, `dns`, or `ssl` |
+| `config` | Map | Yes | Check-specific configuration (see examples above) |
+| `interval_seconds` | Number | Yes | Check interval in seconds (minimum 60) |
+| `regions` | List | No | Monitoring regions (default: `["us-east-1"]`) |
+| `enabled` | Boolean | No | Whether check is enabled (default: `true`) |
+
+#### Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | String | Check ID |
+| `org_id` | String | Organization ID |
+| `health_status` | String | Current health: `healthy`, `unhealthy`, or `unknown` |
+| `last_checked` | String | Last check timestamp |
+| `created_at` | String | Creation timestamp |
+| `updated_at` | String | Last update timestamp |
+
+### quismon_alert_rule
+
+#### Arguments
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `check_id` | String | Yes | ID of the check to monitor |
+| `name` | String | Yes | Alert rule name |
+| `condition` | Map | Yes | Condition that triggers the alert (see conditions above) |
+| `notification_channel_ids` | List | Yes | List of notification channel IDs |
+| `enabled` | Boolean | No | Whether rule is enabled (default: `true`) |
+
+#### Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | String | Alert rule ID |
+| `created_at` | String | Creation timestamp |
+| `updated_at` | String | Last update timestamp |
+
+### quismon_notification_channel
+
+#### Arguments
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | String | Yes | Channel name |
+| `type` | String | Yes | Channel type: `email`, `webhook`, `ntfy`, or `slack` |
+| `config` | Map | Yes | Channel-specific configuration (see examples above) |
+| `enabled` | Boolean | No | Whether channel is enabled (default: `true`) |
+
+#### Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | String | Channel ID |
+| `org_id` | String | Organization ID |
+| `created_at` | String | Creation timestamp |
+| `updated_at` | String | Last update timestamp |
+
+## Data Sources
+
+### quismon_check
+
+Query a specific check by name:
+
+```hcl
+data "quismon_check" "prod_api" {
+  name = "Production API"
+}
+
+output "api_health" {
+  value = data.quismon_check.prod_api.health_status
+}
+```
+
+### quismon_checks
+
+Query all checks:
+
+```hcl
+data "quismon_checks" "all" {}
+
+output "check_count" {
+  value = length(data.quismon_checks.all.checks)
+}
+
+output "all_check_ids" {
+  value = [for c in data.quismon_checks.all.checks : c.id]
+}
+```
+
+### quismon_notification_channel
+
+Query a specific channel by name:
+
+```hcl
+data "quismon_notification_channel" "slack" {
+  name = "Slack Alerts"
+}
+
+output "slack_channel_id" {
+  value = data.quismon_notification_channel.slack.id
+}
+```
+
+## Import
+
+Existing resources can be imported using their ID:
+
+```bash
+terraform import quismon_check.prod_api 550e8400-e29b-41d4-a716-446655440000
+terraform import quismon_alert_rule.api_down 660e8400-e29b-41d4-a716-446655440000
+terraform import quismon_notification_channel.email 770e8400-e29b-41d4-a716-446655440000
+```
+
+## Examples
+
+See the [examples/](examples/) directory for complete working examples:
+
+- [examples/basic/](examples/basic/) - Simple HTTPS check with email alerts
+- [examples/multi-region/](examples/multi-region/) - Multi-region monitoring setup
+- [examples/complete/](examples/complete/) - Full stack with checks, alerts, and notifications
+- [examples/dns-ssl/](examples/dns-ssl/) - DNS and SSL certificate monitoring
+
+## Development
+
+### Building
+
+```bash
+go build -o terraform-provider-quismon
+```
+
+### Testing
+
+```bash
+# Unit tests
+go test ./...
+
+# Acceptance tests (requires API key)
+TF_ACC=1 QUISMON_API_KEY=qm_your_key go test ./... -v
+```
+
+### Local Development
+
+Create `~/.terraformrc`:
+
+```hcl
+provider_installation {
+  dev_overrides {
+    "quismon/quismon" = "/path/to/terraform-provider-quismon"
+  }
+  direct {}
+}
+```
+
+Then run Terraform commands normally - it will use your local build.
+
+## Support
+
+- **Documentation**: https://registry.terraform.io/providers/quismon/quismon/latest/docs
+- **Issues**: https://github.com/quismon/terraform-provider-quismon/issues
+- **API Docs**: https://api.quismon.com/docs
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
