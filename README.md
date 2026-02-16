@@ -253,6 +253,116 @@ resource "quismon_check" "web_app" {
 }
 ```
 
+#### HTTP Check with Body Assertions
+
+Validate response body content:
+
+```hcl
+resource "quismon_check" "api_health" {
+  name             = "API Health Check"
+  type             = "https"
+  interval_seconds = 60
+
+  config = {
+    url                  = "https://api.example.com/health"
+    method               = "GET"
+    expected_status_code = "200"
+    expected_content     = "status\":\"healthy"  # String that must be in response
+    content_match_type   = "contains"             # contains, exact, regex, or not_contains
+  }
+
+  regions = ["us-east-1"]
+}
+
+# Regex validation example
+resource "quismon_check" "api_version" {
+  name             = "API Version Check"
+  type             = "https"
+  interval_seconds = 300
+
+  config = {
+    url                = "https://api.example.com/version"
+    expected_content   = "\"version\":\"v[0-9]+\\.[0-9]+\\.[0-9]+\""
+    content_match_type = "regex"
+  }
+
+  regions = ["us-east-1"]
+}
+
+# Inverted check - alert if private endpoint becomes public
+resource "quismon_check" "private_endpoint_exposure" {
+  name             = "Admin Panel Should Not Be Public"
+  type             = "https"
+  interval_seconds = 300
+
+  config = {
+    url                = "https://internal.example.com/admin"
+    expected_status    = "401,403,404"  # Any of these is good
+    expected_content   = "Not Found"
+    content_match_type = "not_contains"  # Fail if content IS found
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+#### Multi-Step Checks
+
+Chain multiple HTTP requests in a single check (for auth flows, API workflows):
+
+```hcl
+resource "quismon_check" "login_flow" {
+  name             = "Login and API Access Flow"
+  type             = "multistep"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    steps = [
+      {
+        name   = "Get CSRF Token"
+        type   = "http"
+        url    = "https://api.example.com/auth/csrf"
+        method = "GET"
+        extract = {
+          csrf_token = "$.token"
+        }
+      },
+      {
+        name    = "Login"
+        type    = "http"
+        url     = "https://api.example.com/auth/login"
+        method  = "POST"
+        headers = {
+          "Content-Type" = "application/json"
+        }
+        body = jsonencode({
+          email    = "test@example.com"
+          password = "test-password"
+          csrf     = "${steps.0.extract.csrf_token}"
+        })
+        extract = {
+          access_token = "$.access_token"
+        }
+      },
+      {
+        name    = "Access Protected Resource"
+        type    = "http"
+        url     = "https://api.example.com/user/profile"
+        method  = "GET"
+        headers = {
+          "Authorization" = "Bearer ${steps.1.extract.access_token}"
+        }
+        expected_status = [200]
+      }
+    ]
+    fail_fast        = true
+    timeout_seconds  = 30
+  })
+
+  regions = ["us-east-1"]
+}
+```
+
 ### TCP Port Check
 
 ```hcl
@@ -388,6 +498,75 @@ resource "quismon_check" "ssl_cert_san" {
   }
 
   regions = ["us-east-1"]
+}
+```
+
+## Inverted Checks (Security Monitoring)
+
+Inverted checks alert when something that **shouldn't** be accessible **is**. Perfect for security posture monitoring.
+
+### Alert When Port is Open
+
+```hcl
+# Alert if database port becomes publicly accessible
+resource "quismon_check" "db_not_public" {
+  name             = "Database Should Not Be Public"
+  type             = "tcp"
+  interval_seconds = 300
+  enabled          = true
+
+  config = {
+    host            = "db.example.com"
+    port            = "5432"
+    timeout_seconds = "5"
+    invert          = "true"  # Fail if connection succeeds
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+### Alert When Private Page Becomes Public
+
+```hcl
+# Alert if admin page returns 200 (should return 401/403)
+resource "quismon_check" "admin_not_public" {
+  name             = "Admin Panel Should Not Be Public"
+  type             = "https"
+  interval_seconds = 300
+
+  config = {
+    url             = "https://app.example.com/admin"
+    expected_status = "401,403,404"  # Any auth error or not found is good
+  }
+
+  regions = ["us-east-1"]
+}
+```
+
+## Monitoring Regions
+
+Quismon monitors from 31 regions across 6 continents via Vultr:
+
+**North America:** `na-east-ewr` (NYC), `na-west-sjc` (San Jose), `na-west-lax` (LA), `na-west-sea` (Seattle), `na-central-dfw` (Dallas), `na-central-ord` (Chicago), `na-east-mia` (Miami), `na-east-atl` (Atlanta), `na-east-yto` (Toronto), `na-central-mex` (Mexico City)
+
+**Europe:** `eu-west-ams` (Amsterdam), `eu-west-lhr` (London), `eu-west-man` (Manchester), `eu-central-fra` (Frankfurt), `eu-west-cdg` (Paris), `eu-south-mad` (Madrid), `eu-north-waw` (Warsaw), `eu-north-sto` (Stockholm)
+
+**Asia Pacific:** `ap-northeast-nrt` (Tokyo), `ap-northeast-itm` (Osaka), `ap-northeast-icn` (Seoul), `ap-southeast-sin` (Singapore), `ap-south-bom` (Mumbai), `ap-south-del` (Delhi), `ap-south-blr` (Bangalore), `ap-west-tlv` (Tel Aviv)
+
+**Australia:** `au-southeast-syd` (Sydney), `au-south-mel` (Melbourne)
+
+**South America:** `sa-east-sao` (São Paulo), `sa-west-scl` (Santiago)
+
+**Africa:** `af-south-jnb` (Johannesburg)
+
+### Query Available Regions
+
+```hcl
+data "quismon_regions" "all" {}
+
+output "available_regions" {
+  value = [for r in data.quismon_regions.all.regions : "${r.code} - ${r.display_name}"]
 }
 ```
 
