@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -56,7 +57,16 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	// Set Authorization header - ensure proper format
+	apiKey := strings.TrimSpace(c.APIKey)
+	if apiKey != "" {
+		// Don't double-prefix if the key already has Bearer
+		if !strings.HasPrefix(apiKey, "Bearer ") {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		} else {
+			req.Header.Set("Authorization", apiKey)
+		}
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "terraform-provider-quismon/1.0")
 

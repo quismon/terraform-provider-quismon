@@ -74,12 +74,15 @@ func (p *quismonProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 	// If practitioner provided a configuration value for any of the
 	// attributes, it must be a known value.
+	// Note: We don't error on unknown API key - this enables the bootstrap pattern
+	// where api_key = quismon_signup.foo.api_key is used before the signup exists.
+	// The state auto-detection will handle getting the key from a previous apply.
 	if config.APIKey.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_key"),
+		resp.Diagnostics.AddWarning(
 			"Unknown Quismon API Key",
-			"The provider cannot create the Quismon API client as there is an unknown configuration value for the API key. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the QUISMON_API_KEY environment variable.",
+			"The provider API key is unknown (likely referencing a resource that doesn't exist yet). "+
+				"If this is your first apply, use: terraform apply -target=quismon_signup.<name>\n"+
+				"For subsequent applies, the provider will auto-detect the API key from terraform state.",
 		)
 	}
 

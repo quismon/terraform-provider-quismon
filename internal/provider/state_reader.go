@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // TerraformState represents the structure of a Terraform state file
@@ -60,6 +61,8 @@ func readAPIKeyFromState() (apiKey string, warning string) {
 		if resource.Type == "quismon_signup" && len(resource.Instances) > 0 {
 			attrs := resource.Instances[0].Attributes
 			if key, ok := attrs["api_key"].(string); ok && key != "" {
+				// Trim any whitespace that might have been introduced
+				key = strings.TrimSpace(key)
 				warning = fmt.Sprintf(
 					"Using API key from terraform state (%s).\n\n"+
 						"💡 Tip: For future runs, export the key:\n"+

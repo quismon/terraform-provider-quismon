@@ -130,6 +130,7 @@ func (r *notificationChannelResource) Create(ctx context.Context, req resource.C
 
 	plan.ID = types.StringValue(channel.ID)
 	plan.OrgID = types.StringValue(channel.OrgID)
+	plan.Enabled = types.BoolValue(channel.Enabled)
 	plan.CreatedAt = types.StringValue(channel.CreatedAt)
 	plan.UpdatedAt = types.StringValue(channel.UpdatedAt)
 
