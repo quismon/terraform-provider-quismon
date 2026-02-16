@@ -339,6 +339,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	} else {
 		plan.LastChecked = types.StringNull()
 	}
+	plan.CreatedAt = types.StringValue(check.CreatedAt)
 	plan.UpdatedAt = types.StringValue(check.UpdatedAt)
 
 	diags = resp.State.Set(ctx, plan)
