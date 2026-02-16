@@ -157,6 +157,7 @@ func (p *quismonProvider) DataSources(_ context.Context) []func() datasource.Dat
 		NewCheckDataSource,
 		NewChecksDataSource,
 		NewNotificationChannelDataSource,
+		NewRegionsDataSource,
 	}
 }
 
