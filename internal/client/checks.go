@@ -16,6 +16,7 @@ type Check struct {
 	Regions             []string               `json:"regions"`
 	Enabled             bool                   `json:"enabled"`
 	SimultaneousRegions bool                   `json:"simultaneous_regions"`
+	RecheckOnFailure    bool                   `json:"recheck_on_failure"`
 	HealthStatus        string                 `json:"health_status,omitempty"`
 	LastChecked         *string                `json:"last_checked,omitempty"`
 	CreatedAt           string                 `json:"created_at"`
@@ -31,6 +32,7 @@ type CreateCheckRequest struct {
 	Regions             []string               `json:"regions,omitempty"`
 	Enabled             bool                   `json:"enabled"`
 	SimultaneousRegions *bool                  `json:"simultaneous_regions,omitempty"`
+	RecheckOnFailure    *bool                  `json:"recheck_on_failure,omitempty"`
 }
 
 // UpdateCheckRequest represents a request to update a check
@@ -42,6 +44,7 @@ type UpdateCheckRequest struct {
 	Regions             *[]string               `json:"regions,omitempty"`
 	Enabled             *bool                   `json:"enabled,omitempty"`
 	SimultaneousRegions *bool                   `json:"simultaneous_regions,omitempty"`
+	RecheckOnFailure    *bool                   `json:"recheck_on_failure,omitempty"`
 }
 
 // ListChecks retrieves all checks

@@ -46,6 +46,7 @@ type checkResourceModel struct {
 	Regions             types.List   `tfsdk:"regions"`
 	Enabled             types.Bool   `tfsdk:"enabled"`
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
+	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
 	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
 	LastChecked         types.String `tfsdk:"last_checked"`
@@ -110,6 +111,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"simultaneous_regions": schema.BoolAttribute{
 				Description: "If true, all regional checks execute simultaneously. If false (default), regional checks are staggered to avoid rate limiting.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"recheck_on_failure": schema.BoolAttribute{
+				Description: "If true, failed checks trigger an immediate recheck from a different region to verify the failure before alerting.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -212,6 +219,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Regions:             regions,
 		Enabled:             plan.Enabled.ValueBool(),
 		SimultaneousRegions: plan.SimultaneousRegions.ValueBoolPointer(),
+		RecheckOnFailure:    plan.RecheckOnFailure.ValueBoolPointer(),
 	}
 
 	check, err := r.client.CreateCheck(createReq)
@@ -227,6 +235,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.ID = types.StringValue(check.ID)
 	plan.OrgID = types.StringValue(check.OrgID)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
+	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)
@@ -265,6 +274,7 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.IntervalSeconds = types.Int64Value(int64(check.IntervalSeconds))
 	state.Enabled = types.BoolValue(check.Enabled)
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
+	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	state.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		state.LastChecked = types.StringValue(*check.LastChecked)
@@ -323,6 +333,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	intervalSeconds := int(plan.IntervalSeconds.ValueInt64())
 	enabled := plan.Enabled.ValueBool()
 	simultaneousRegions := plan.SimultaneousRegions.ValueBool()
+	recheckOnFailure := plan.RecheckOnFailure.ValueBool()
 
 	updateReq := client.UpdateCheckRequest{
 		Name:                &name,
@@ -332,6 +343,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		Regions:             &regions,
 		Enabled:             &enabled,
 		SimultaneousRegions: &simultaneousRegions,
+		RecheckOnFailure:    &recheckOnFailure,
 	}
 
 	check, err := r.client.UpdateCheck(plan.ID.ValueString(), updateReq)
@@ -346,6 +358,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	// Map response to state
 	plan.OrgID = types.StringValue(check.OrgID)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
+	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)
