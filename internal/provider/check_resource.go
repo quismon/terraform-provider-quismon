@@ -36,20 +36,21 @@ type checkResource struct {
 
 // checkResourceModel maps the resource schema data.
 type checkResourceModel struct {
-	ID              types.String `tfsdk:"id"`
-	OrgID           types.String `tfsdk:"org_id"`
-	Name            types.String `tfsdk:"name"`
-	Type            types.String `tfsdk:"type"`
-	Config          types.Map    `tfsdk:"config"`
-	ConfigJSON      types.String `tfsdk:"config_json"`
-	IntervalSeconds types.Int64  `tfsdk:"interval_seconds"`
-	Regions         types.List   `tfsdk:"regions"`
-	Enabled         types.Bool   `tfsdk:"enabled"`
-	IaCLocked       types.Bool   `tfsdk:"iac_locked"`
-	HealthStatus    types.String `tfsdk:"health_status"`
-	LastChecked     types.String `tfsdk:"last_checked"`
-	CreatedAt       types.String `tfsdk:"created_at"`
-	UpdatedAt       types.String `tfsdk:"updated_at"`
+	ID                  types.String `tfsdk:"id"`
+	OrgID               types.String `tfsdk:"org_id"`
+	Name                types.String `tfsdk:"name"`
+	Type                types.String `tfsdk:"type"`
+	Config              types.Map    `tfsdk:"config"`
+	ConfigJSON          types.String `tfsdk:"config_json"`
+	IntervalSeconds     types.Int64  `tfsdk:"interval_seconds"`
+	Regions             types.List   `tfsdk:"regions"`
+	Enabled             types.Bool   `tfsdk:"enabled"`
+	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
+	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
+	HealthStatus        types.String `tfsdk:"health_status"`
+	LastChecked         types.String `tfsdk:"last_checked"`
+	CreatedAt           types.String `tfsdk:"created_at"`
+	UpdatedAt           types.String `tfsdk:"updated_at"`
 }
 
 // Metadata returns the resource type name.
@@ -78,7 +79,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, ssl, or multistep.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, ssl, multistep, smtp-imap, throughput, or http3.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
@@ -87,7 +88,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				ElementType: types.StringType,
 			},
 			"config_json": schema.StringAttribute{
-				Description: "Check configuration as JSON string (required for multistep and other complex configs). Use jsonencode() to create this.",
+				Description: "Check configuration as JSON string (required for multistep, smtp-imap, and other complex configs). Use jsonencode() to create this.",
 				Optional:    true,
 			},
 			"interval_seconds": schema.Int64Attribute{
@@ -106,6 +107,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+			},
+			"simultaneous_regions": schema.BoolAttribute{
+				Description: "If true, all regional checks execute simultaneously. If false (default), regional checks are staggered to avoid rate limiting.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
 			},
 			"iac_locked": schema.BoolAttribute{
 				Description: "If true, this check can only be modified via API (prevents web UI changes).",
@@ -198,12 +205,13 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	// Create the check
 	createReq := client.CreateCheckRequest{
-		Name:            plan.Name.ValueString(),
-		Type:            plan.Type.ValueString(),
-		Config:          configMap,
-		IntervalSeconds: int(plan.IntervalSeconds.ValueInt64()),
-		Regions:         regions,
-		Enabled:         plan.Enabled.ValueBool(),
+		Name:                plan.Name.ValueString(),
+		Type:                plan.Type.ValueString(),
+		Config:              configMap,
+		IntervalSeconds:     int(plan.IntervalSeconds.ValueInt64()),
+		Regions:             regions,
+		Enabled:             plan.Enabled.ValueBool(),
+		SimultaneousRegions: plan.SimultaneousRegions.ValueBoolPointer(),
 	}
 
 	check, err := r.client.CreateCheck(createReq)
@@ -218,6 +226,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	// Map response to state
 	plan.ID = types.StringValue(check.ID)
 	plan.OrgID = types.StringValue(check.OrgID)
+	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)
@@ -255,6 +264,7 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Type = types.StringValue(check.Type)
 	state.IntervalSeconds = types.Int64Value(int64(check.IntervalSeconds))
 	state.Enabled = types.BoolValue(check.Enabled)
+	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		state.LastChecked = types.StringValue(*check.LastChecked)
@@ -312,14 +322,16 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	checkType := plan.Type.ValueString()
 	intervalSeconds := int(plan.IntervalSeconds.ValueInt64())
 	enabled := plan.Enabled.ValueBool()
+	simultaneousRegions := plan.SimultaneousRegions.ValueBool()
 
 	updateReq := client.UpdateCheckRequest{
-		Name:            &name,
-		Type:            &checkType,
-		Config:          &configMap,
-		IntervalSeconds: &intervalSeconds,
-		Regions:         &regions,
-		Enabled:         &enabled,
+		Name:                &name,
+		Type:                &checkType,
+		Config:              &configMap,
+		IntervalSeconds:     &intervalSeconds,
+		Regions:             &regions,
+		Enabled:             &enabled,
+		SimultaneousRegions: &simultaneousRegions,
 	}
 
 	check, err := r.client.UpdateCheck(plan.ID.ValueString(), updateReq)
@@ -333,6 +345,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Map response to state
 	plan.OrgID = types.StringValue(check.OrgID)
+	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)

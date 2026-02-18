@@ -7,38 +7,41 @@ import (
 
 // Check represents a Quismon health check
 type Check struct {
-	ID              string                 `json:"id"`
-	OrgID           string                 `json:"org_id"`
-	Name            string                 `json:"name"`
-	Type            string                 `json:"type"`
-	Config          map[string]interface{} `json:"config"`
-	IntervalSeconds int                    `json:"interval_seconds"`
-	Regions         []string               `json:"regions"`
-	Enabled         bool                   `json:"enabled"`
-	HealthStatus    string                 `json:"health_status,omitempty"`
-	LastChecked     *string                `json:"last_checked,omitempty"`
-	CreatedAt       string                 `json:"created_at"`
-	UpdatedAt       string                 `json:"updated_at"`
+	ID                  string                 `json:"id"`
+	OrgID               string                 `json:"org_id"`
+	Name                string                 `json:"name"`
+	Type                string                 `json:"type"`
+	Config              map[string]interface{} `json:"config"`
+	IntervalSeconds     int                    `json:"interval_seconds"`
+	Regions             []string               `json:"regions"`
+	Enabled             bool                   `json:"enabled"`
+	SimultaneousRegions bool                   `json:"simultaneous_regions"`
+	HealthStatus        string                 `json:"health_status,omitempty"`
+	LastChecked         *string                `json:"last_checked,omitempty"`
+	CreatedAt           string                 `json:"created_at"`
+	UpdatedAt           string                 `json:"updated_at"`
 }
 
 // CreateCheckRequest represents a request to create a check
 type CreateCheckRequest struct {
-	Name            string                 `json:"name"`
-	Type            string                 `json:"type"`
-	Config          map[string]interface{} `json:"config"`
-	IntervalSeconds int                    `json:"interval_seconds"`
-	Regions         []string               `json:"regions,omitempty"`
-	Enabled         bool                   `json:"enabled"`
+	Name                string                 `json:"name"`
+	Type                string                 `json:"type"`
+	Config              map[string]interface{} `json:"config"`
+	IntervalSeconds     int                    `json:"interval_seconds"`
+	Regions             []string               `json:"regions,omitempty"`
+	Enabled             bool                   `json:"enabled"`
+	SimultaneousRegions *bool                  `json:"simultaneous_regions,omitempty"`
 }
 
 // UpdateCheckRequest represents a request to update a check
 type UpdateCheckRequest struct {
-	Name            *string                 `json:"name,omitempty"`
-	Type            *string                 `json:"type,omitempty"`
-	Config          *map[string]interface{} `json:"config,omitempty"`
-	IntervalSeconds *int                    `json:"interval_seconds,omitempty"`
-	Regions         *[]string               `json:"regions,omitempty"`
-	Enabled         *bool                   `json:"enabled,omitempty"`
+	Name                *string                 `json:"name,omitempty"`
+	Type                *string                 `json:"type,omitempty"`
+	Config              *map[string]interface{} `json:"config,omitempty"`
+	IntervalSeconds     *int                    `json:"interval_seconds,omitempty"`
+	Regions             *[]string               `json:"regions,omitempty"`
+	Enabled             *bool                   `json:"enabled,omitempty"`
+	SimultaneousRegions *bool                   `json:"simultaneous_regions,omitempty"`
 }
 
 // ListChecks retrieves all checks
