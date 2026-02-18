@@ -25,6 +25,14 @@ type CreateAlertRuleRequest struct {
 	Enabled                bool                   `json:"enabled"`
 }
 
+// UpdateAlertRuleRequest represents a request to update an alert rule
+type UpdateAlertRuleRequest struct {
+	Name                   *string                 `json:"name,omitempty"`
+	Condition              *map[string]interface{} `json:"condition,omitempty"`
+	NotificationChannelIDs *[]string               `json:"notification_channel_ids,omitempty"`
+	Enabled                *bool                   `json:"enabled,omitempty"`
+}
+
 // ListAlertRules retrieves all alert rules for a check
 func (c *Client) ListAlertRules(checkID string) ([]AlertRule, error) {
 	data, err := c.DoRequest(http.MethodGet, fmt.Sprintf("/v1/checks/%s/alerts", checkID), nil)
@@ -58,6 +66,21 @@ func (c *Client) GetAlertRule(checkID, ruleID string) (*AlertRule, error) {
 // CreateAlertRule creates a new alert rule
 func (c *Client) CreateAlertRule(checkID string, req CreateAlertRuleRequest) (*AlertRule, error) {
 	data, err := c.DoRequest(http.MethodPost, fmt.Sprintf("/v1/checks/%s/alerts", checkID), req)
+	if err != nil {
+		return nil, err
+	}
+
+	var rule AlertRule
+	if err := UnmarshalAPIResponse(data, &rule); err != nil {
+		return nil, err
+	}
+
+	return &rule, nil
+}
+
+// UpdateAlertRule updates an existing alert rule
+func (c *Client) UpdateAlertRule(checkID, ruleID string, req UpdateAlertRuleRequest) (*AlertRule, error) {
+	data, err := c.DoRequest(http.MethodPut, fmt.Sprintf("/v1/checks/%s/alerts/%s", checkID, ruleID), req)
 	if err != nil {
 		return nil, err
 	}

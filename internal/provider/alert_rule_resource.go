@@ -181,7 +181,69 @@ func (r *alertRuleResource) Read(ctx context.Context, req resource.ReadRequest, 
 }
 
 func (r *alertRuleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError("Update Not Supported", "Alert rules cannot be updated. Delete and recreate instead.")
+	var plan alertRuleResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var state alertRuleResourceModel
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var channelIDs []string
+	diags = plan.NotificationChannelIDs.ElementsAs(ctx, &channelIDs, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Build update request with only changed fields
+	updateReq := client.UpdateAlertRuleRequest{}
+
+	if plan.Name.ValueString() != state.Name.ValueString() {
+		name := plan.Name.ValueString()
+		updateReq.Name = &name
+	}
+
+	// Check if condition changed
+	if !plan.Condition.Equal(state.Condition) {
+		conditionMap := make(map[string]interface{})
+		for key, value := range plan.Condition.Elements() {
+			if strVal, ok := value.(types.String); ok {
+				conditionMap[key] = strVal.ValueString()
+			}
+		}
+		updateReq.Condition = &conditionMap
+	}
+
+	// Check if notification channels changed
+	if !plan.NotificationChannelIDs.Equal(state.NotificationChannelIDs) {
+		updateReq.NotificationChannelIDs = &channelIDs
+	}
+
+	// Check if enabled changed
+	if plan.Enabled.ValueBool() != state.Enabled.ValueBool() {
+		enabled := plan.Enabled.ValueBool()
+		updateReq.Enabled = &enabled
+	}
+
+	// Perform update
+	rule, err := r.client.UpdateAlertRule(state.CheckID.ValueString(), state.ID.ValueString(), updateReq)
+	if err != nil {
+		resp.Diagnostics.AddError("Error Updating Alert Rule", err.Error())
+		return
+	}
+
+	// Update state with response
+	plan.UpdatedAt = types.StringValue(rule.UpdatedAt)
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
 }
 
 func (r *alertRuleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
