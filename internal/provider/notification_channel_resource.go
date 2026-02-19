@@ -159,6 +159,16 @@ func (r *notificationChannelResource) Read(ctx context.Context, req resource.Rea
 	state.CreatedAt = types.StringValue(channel.CreatedAt)
 	state.UpdatedAt = types.StringValue(channel.UpdatedAt)
 
+	// Convert config map to Terraform Map type
+	if channel.Config != nil {
+		configMap, diags := types.MapValueFrom(ctx, types.StringType, channel.Config)
+		resp.Diagnostics.Append(diags...)
+		if diags.HasError() {
+			return
+		}
+		state.Config = configMap
+	}
+
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -194,6 +204,8 @@ func (r *notificationChannelResource) Update(ctx context.Context, req resource.U
 		return
 	}
 
+	plan.ID = types.StringValue(channel.ID)
+	plan.CreatedAt = types.StringValue(channel.CreatedAt)
 	plan.UpdatedAt = types.StringValue(channel.UpdatedAt)
 
 	diags = resp.State.Set(ctx, plan)

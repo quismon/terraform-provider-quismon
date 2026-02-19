@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -248,6 +249,8 @@ func (r *alertRuleResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	// Update state with response
+	plan.ID = types.StringValue(rule.ID)
+	plan.CreatedAt = types.StringValue(rule.CreatedAt)
 	plan.UpdatedAt = types.StringValue(rule.UpdatedAt)
 
 	diags = resp.State.Set(ctx, plan)
@@ -271,5 +274,19 @@ func (r *alertRuleResource) Delete(ctx context.Context, req resource.DeleteReque
 
 func (r *alertRuleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Import format: check_id:rule_id
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	parts := strings.Split(req.ID, ":")
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid Import ID",
+			"Expected import ID in format: check_id:rule_id",
+		)
+		return
+	}
+
+	checkID := parts[0]
+	ruleID := parts[1]
+
+	// Set both check_id and id in state
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("check_id"), checkID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), ruleID)...)
 }
