@@ -4,9 +4,10 @@ The Quismon Terraform provider allows you to manage your monitoring infrastructu
 
 ## Features
 
-- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, and SSL health checks
+- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, SSL, HTTP/3, Throughput, SMTP/IMAP, and Multi-step health checks
 - **Alert Rules**: Configure alert conditions using flexible condition maps
 - **Notification Channels**: Set up email, ntfy, webhook, and Slack notifications
+- **Custom Templates**: Use template variables for personalized alert messages
 - **Data Sources**: Query existing checks and channels
 - **Multi-Region Monitoring**: Deploy checks across multiple geographic regions
 
@@ -227,6 +228,66 @@ resource "quismon_alert_rule" "consecutive_failures" {
 }
 ```
 
+## Exporting Existing Resources
+
+If you've created checks through the dashboard or API, you can export them to Terraform configuration for version control and infrastructure-as-code management.
+
+### Using the Export API
+
+```bash
+# Export your organization's configuration as Terraform HCL
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://api.quismon.com/v1/exports/terraform > main.tf
+
+# Or export as JSON for processing
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://api.quismon.com/v1/exports/json > config.json
+```
+
+### Importing Existing Resources
+
+The export includes import blocks, making it easy to bring existing resources under Terraform management:
+
+```bash
+# 1. Export your configuration
+curl -H "Authorization: Bearer $QUISMON_API_KEY" \
+  https://api.quismon.com/v1/exports/terraform > main.tf
+
+# 2. Create a variables file
+cat > terraform.tfvars << EOF
+base_url = "https://api.quismon.com"
+api_key  = "YOUR_API_KEY"
+EOF
+
+# 3. Initialize and import
+terraform init
+terraform apply  # Imports all existing resources
+
+# 4. Verify - should show "No changes"
+terraform plan
+```
+
+### What's Included in the Export
+
+| Resource | Details |
+|----------|---------|
+| **Checks** | All check types with full configuration |
+| **Notification Channels** | Email, Slack, ntfy, webhook configs |
+| **Alert Rules** | Conditions and channel associations |
+| **Outputs** | Resource IDs for reference |
+| **Import Blocks** | Ready for Terraform 1.5+ import |
+
+### Transitioning from Dashboard to IaC
+
+The export enables a smooth transition from manual/dashboard management to Infrastructure as Code:
+
+1. **Export** - Capture your current setup
+2. **Version Control** - Commit the generated Terraform files
+3. **Iterate** - Make changes through Terraform, not the dashboard
+4. **Collaborate** - Use pull requests for monitoring changes
+
+See [docs/VIBECODING-TO-IAC.md](../docs/VIBECODING-TO-IAC.md) for a complete guide.
+
 ## Check Types
 
 ### HTTP/HTTPS Check
@@ -446,6 +507,108 @@ resource "quismon_check" "dns_spf" {
 ```
 
 **DNS Record Types**: `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SOA`
+
+### HTTP/3 (QUIC) Check
+
+Monitor endpoints that support HTTP/3 protocol:
+
+```hcl
+resource "quismon_check" "http3" {
+  name             = "HTTP/3 Endpoint"
+  type             = "http3"
+  interval_seconds = 60
+
+  config_json = jsonencode({
+    url              = "https://cloudflare.com"
+    method           = "GET"
+    expected_status  = [200, 301, 302]
+    timeout_seconds  = 10
+  })
+
+  regions = ["na-east-ewr"]
+  enabled = true
+}
+
+# HTTP/3 with content validation
+resource "quismon_check" "http3_api" {
+  name             = "HTTP/3 API Health"
+  type             = "http3"
+  interval_seconds = 120
+
+  config_json = jsonencode({
+    url                = "https://api.example.com/health"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "\"status\":\"ok\""
+    content_match_type = "contains"
+    timeout_seconds    = 10
+  })
+
+  regions = ["na-east-ewr", "eu-west-ams"]
+  enabled = true
+}
+```
+
+### Throughput Check
+
+Measure download bandwidth:
+
+```hcl
+resource "quismon_check" "throughput" {
+  name             = "CDN Throughput"
+  type             = "throughput"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    url             = "https://speed.cloudflare.com/__down?bytes=10000000"
+    max_size_mb     = 5  # Tier-limited: Free=5, Paid=100, Enterprise=500
+    timeout_seconds = 30
+  })
+
+  regions = ["na-east-ewr", "eu-west-ams"]
+  enabled = true
+}
+```
+
+**Tier Limits for Throughput**:
+- Free tier: 5 MB max download
+- Paid tier: 100 MB max download
+- Enterprise: 500 MB max download
+
+### SMTP/IMAP Check
+
+End-to-end email delivery testing:
+
+```hcl
+resource "quismon_check" "smtp_imap" {
+  name             = "Email Delivery Test"
+  type             = "smtp-imap"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    smtp_host        = "smtp.example.com"
+    smtp_port        = 587
+    smtp_username    = "monitoring@example.com"
+    smtp_password    = var.smtp_password
+    smtp_use_tls     = true
+
+    imap_host        = "imap.example.com"
+    imap_port        = 993
+    imap_use_tls     = true
+
+    from_address     = "monitoring@example.com"
+    to_address       = "inbox@example.com"
+    subject          = "Quismon Email Test - {{message_id}}"
+    body             = "This is an automated test email."
+
+    timeout_seconds  = 30
+    max_wait_seconds = 60
+  })
+
+  regions = ["na-east-ewr"]
+  enabled = true
+}
+```
 
 ### SSL Certificate Check
 
@@ -858,6 +1021,8 @@ See the [examples/](examples/) directory for complete working examples:
 - [examples/multi-region/](examples/multi-region/) - Multi-region monitoring setup
 - [examples/complete/](examples/complete/) - Full stack with checks, alerts, and notifications
 - [examples/dns-ssl/](examples/dns-ssl/) - DNS and SSL certificate monitoring
+- [examples/multistep/](examples/multistep/) - Multi-step workflow testing
+- [examples/advanced-checks/](examples/advanced-checks/) - HTTP/3, Throughput, and advanced check types
 
 ## Development
 
