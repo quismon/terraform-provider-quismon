@@ -295,6 +295,9 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
+	// Store the previous config_hash for drift detection
+	previousConfigHash := state.ConfigHash.ValueString()
+
 	check, err := r.client.GetCheck(state.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -302,6 +305,19 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 			"Could not read check ID "+state.ID.ValueString()+": "+err.Error(),
 		)
 		return
+	}
+
+	// Check for config drift via hash comparison
+	// If the hash changed externally, the sensitive config fields have been modified
+	// outside of Terraform (e.g., via API or dashboard)
+	if previousConfigHash != "" && check.ConfigHash != "" && previousConfigHash != check.ConfigHash {
+		resp.Diagnostics.AddWarning(
+			"Configuration Drift Detected",
+			"The check's sensitive configuration (passwords) has been modified externally (via API or dashboard). "+
+				"The config_hash changed from "+previousConfigHash+" to "+check.ConfigHash+". "+
+				"To reconcile, either update your Terraform configuration with the new values, "+
+				"or re-apply to reset the check to your Terraform-defined configuration.",
+		)
 	}
 
 	// Map response to state
@@ -327,6 +343,11 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 	state.CreatedAt = types.StringValue(check.CreatedAt)
 	state.UpdatedAt = types.StringValue(check.UpdatedAt)
+
+	// Note: We intentionally do NOT update state.Config or state.ConfigJSON from the API
+	// because sensitive fields (passwords) are returned as ***REDACTED***.
+	// We preserve the user's Terraform-defined configuration in state.
+	// Drift detection is handled via config_hash comparison above.
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
