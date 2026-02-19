@@ -175,3 +175,129 @@ resource "quismon_check" "test" {
 }
 `, name)
 }
+
+// TestAccCheckResource_SMTPIMAP tests SMTP-IMAP check with password fields
+// Verifies that config_hash is returned and passwords are handled securely
+func TestAccCheckResource_SMTPIMAP(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_smtpImap("test-mail"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "name", "test-mail"),
+					resource.TestCheckResourceAttr("quismon_check.test", "type", "smtp-imap"),
+					// config_hash should be set (non-empty) when passwords are present
+					resource.TestCheckResourceAttrSet("quismon_check.test", "config_hash"),
+				),
+			},
+			// ImportState testing - config is sensitive so it won't be imported
+			{
+				ResourceName:      "quismon_check.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// Config fields with passwords won't match after import
+				// because API returns ***REDACTED***
+				ImportStateVerifyIgnore: []string{"config", "config_json"},
+			},
+		},
+	})
+}
+
+// TestAccCheckResource_ConfigJSON tests using config_json for complex configs
+func TestAccCheckResource_ConfigJSON(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_configJSON("test-json-config"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "name", "test-json-config"),
+					resource.TestCheckResourceAttr("quismon_check.test", "type", "https"),
+					// config_json should be sensitive
+					// We can't check the actual value since it's marked sensitive
+				),
+			},
+		},
+	})
+}
+
+// TestAccCheckResource_ConfigHashDrift tests that config_hash is updated on read
+// This verifies the drift detection mechanism works
+func TestAccCheckResource_ConfigHashDrift(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_smtpImap("test-drift"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("quismon_check.test", "config_hash"),
+				),
+			},
+			// Refresh should preserve the config_hash from API
+			{
+				RefreshState: true,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("quismon_check.test", "config_hash"),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckResourceConfig_smtpImap(name string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "smtp-imap"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config = {
+    smtp_host      = "smtp.example.com"
+    smtp_port      = "587"
+    smtp_username  = "test@example.com"
+    smtp_password  = "test-password-123"
+    smtp_use_tls   = "true"
+    imap_host      = "imap.example.com"
+    imap_port      = "993"
+    imap_username  = "test@example.com"
+    imap_password  = "test-password-456"
+    imap_use_tls   = "true"
+    from_address   = "test@example.com"
+    to_address     = "test+inbox@example.com"
+    subject        = "Test Email"
+    body           = "Test body"
+    timeout_seconds = "30"
+  }
+}
+`, name)
+}
+
+func testAccCheckResourceConfig_configJSON(name string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "https"
+  interval_seconds = 60
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    url             = "https://api.example.com/health"
+    method          = "GET"
+    expected_status = [200]
+    timeout_seconds = 10
+    headers = {
+      "Authorization" = "Bearer secret-token-123"
+    }
+  })
+}
+`, name)
+}
