@@ -12,11 +12,14 @@ type Check struct {
 	Name                string                 `json:"name"`
 	Type                string                 `json:"type"`
 	Config              map[string]interface{} `json:"config"`
+	ConfigHash          string                 `json:"config_hash,omitempty"` // Hash of sensitive fields for drift detection
 	IntervalSeconds     int                    `json:"interval_seconds"`
 	Regions             []string               `json:"regions"`
 	Enabled             bool                   `json:"enabled"`
+	Inverted            bool                   `json:"inverted"` // Alert on success instead of failure
 	SimultaneousRegions bool                   `json:"simultaneous_regions"`
 	RecheckOnFailure    bool                   `json:"recheck_on_failure"`
+	ExpiresAfterSeconds *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 	HealthStatus        string                 `json:"health_status,omitempty"`
 	LastChecked         *string                `json:"last_checked,omitempty"`
 	CreatedAt           string                 `json:"created_at"`
@@ -31,8 +34,10 @@ type CreateCheckRequest struct {
 	IntervalSeconds     int                    `json:"interval_seconds"`
 	Regions             []string               `json:"regions,omitempty"`
 	Enabled             bool                   `json:"enabled"`
+	Inverted            *bool                  `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions *bool                  `json:"simultaneous_regions,omitempty"`
 	RecheckOnFailure    *bool                  `json:"recheck_on_failure,omitempty"`
+	ExpiresAfterSeconds *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 }
 
 // UpdateCheckRequest represents a request to update a check
@@ -43,8 +48,10 @@ type UpdateCheckRequest struct {
 	IntervalSeconds     *int                    `json:"interval_seconds,omitempty"`
 	Regions             *[]string               `json:"regions,omitempty"`
 	Enabled             *bool                   `json:"enabled,omitempty"`
+	Inverted            *bool                   `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions *bool                   `json:"simultaneous_regions,omitempty"`
 	RecheckOnFailure    *bool                   `json:"recheck_on_failure,omitempty"`
+	ExpiresAfterSeconds *int                    `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 }
 
 // ListChecks retrieves all checks

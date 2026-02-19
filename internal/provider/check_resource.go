@@ -42,11 +42,14 @@ type checkResourceModel struct {
 	Type                types.String `tfsdk:"type"`
 	Config              types.Map    `tfsdk:"config"`
 	ConfigJSON          types.String `tfsdk:"config_json"`
+	ConfigHash          types.String `tfsdk:"config_hash"`
 	IntervalSeconds     types.Int64  `tfsdk:"interval_seconds"`
 	Regions             types.List   `tfsdk:"regions"`
 	Enabled             types.Bool   `tfsdk:"enabled"`
+	Inverted            types.Bool   `tfsdk:"inverted"`
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
 	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
+	ExpiresAfterSeconds types.Int64  `tfsdk:"expires_after_seconds"`
 	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
 	LastChecked         types.String `tfsdk:"last_checked"`
@@ -84,13 +87,19 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
-				Description: "Check-specific configuration (for simple types). Use config_json for complex nested configs like multistep.",
+				Description: "Check-specific configuration (for simple types). Use config_json for complex nested configs like multistep. Password fields (smtp_password, imap_password, password) are sensitive and cannot be re-read from the API.",
 				Optional:    true,
+				Sensitive:   true,
 				ElementType: types.StringType,
 			},
 			"config_json": schema.StringAttribute{
-				Description: "Check configuration as JSON string (required for multistep, smtp-imap, and other complex configs). Use jsonencode() to create this.",
+				Description: "Check configuration as JSON string (required for multistep, smtp-imap, and other complex configs). Use jsonencode() to create this. Password fields are sensitive and cannot be re-read from the API.",
 				Optional:    true,
+				Sensitive:   true,
+			},
+			"config_hash": schema.StringAttribute{
+				Description: "Hash of sensitive config fields for drift detection. Use this to detect if passwords have changed externally.",
+				Computed:    true,
 			},
 			"interval_seconds": schema.Int64Attribute{
 				Description: "Check interval in seconds (minimum 60).",
@@ -109,6 +118,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
 			},
+			"inverted": schema.BoolAttribute{
+				Description: "If true, alerts on success instead of failure. Useful for firewall validation - alert when a blocked port opens.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 			"simultaneous_regions": schema.BoolAttribute{
 				Description: "If true, all regional checks execute simultaneously. If false (default), regional checks are staggered to avoid rate limiting.",
 				Optional:    true,
@@ -120,6 +135,14 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
+			},
+			"expires_after_seconds": schema.Int64Attribute{
+				Description: "Check auto-deletes after this many seconds. NULL or 0 means no expiration. Note: expiring checks are typically created via API for temporary monitoring, not via Terraform.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Int64{
+					ExpiresAfterSecondsModifier(),
+				},
 			},
 			"iac_locked": schema.BoolAttribute{
 				Description: "If true, this check can only be modified via API (prevents web UI changes).",
@@ -218,8 +241,15 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		IntervalSeconds:     int(plan.IntervalSeconds.ValueInt64()),
 		Regions:             regions,
 		Enabled:             plan.Enabled.ValueBool(),
+		Inverted:            plan.Inverted.ValueBoolPointer(),
 		SimultaneousRegions: plan.SimultaneousRegions.ValueBoolPointer(),
 		RecheckOnFailure:    plan.RecheckOnFailure.ValueBoolPointer(),
+	}
+
+	// Only set expires_after_seconds if it's explicitly set (non-zero)
+	if !plan.ExpiresAfterSeconds.IsNull() && plan.ExpiresAfterSeconds.ValueInt64() > 0 {
+		expiresAfter := int(plan.ExpiresAfterSeconds.ValueInt64())
+		createReq.ExpiresAfterSeconds = &expiresAfter
 	}
 
 	check, err := r.client.CreateCheck(createReq)
@@ -234,8 +264,15 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	// Map response to state
 	plan.ID = types.StringValue(check.ID)
 	plan.OrgID = types.StringValue(check.OrgID)
+	plan.ConfigHash = types.StringValue(check.ConfigHash)
+	plan.Inverted = types.BoolValue(check.Inverted)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	if check.ExpiresAfterSeconds != nil {
+		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
+	} else {
+		plan.ExpiresAfterSeconds = types.Int64Null()
+	}
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)
@@ -271,10 +308,17 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.OrgID = types.StringValue(check.OrgID)
 	state.Name = types.StringValue(check.Name)
 	state.Type = types.StringValue(check.Type)
+	state.ConfigHash = types.StringValue(check.ConfigHash)
 	state.IntervalSeconds = types.Int64Value(int64(check.IntervalSeconds))
 	state.Enabled = types.BoolValue(check.Enabled)
+	state.Inverted = types.BoolValue(check.Inverted)
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	if check.ExpiresAfterSeconds != nil {
+		state.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
+	} else {
+		state.ExpiresAfterSeconds = types.Int64Null()
+	}
 	state.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		state.LastChecked = types.StringValue(*check.LastChecked)
@@ -332,6 +376,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	checkType := plan.Type.ValueString()
 	intervalSeconds := int(plan.IntervalSeconds.ValueInt64())
 	enabled := plan.Enabled.ValueBool()
+	inverted := plan.Inverted.ValueBool()
 	simultaneousRegions := plan.SimultaneousRegions.ValueBool()
 	recheckOnFailure := plan.RecheckOnFailure.ValueBool()
 
@@ -342,8 +387,12 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		IntervalSeconds:     &intervalSeconds,
 		Regions:             &regions,
 		Enabled:             &enabled,
+		Inverted:            &inverted,
 		SimultaneousRegions: &simultaneousRegions,
 		RecheckOnFailure:    &recheckOnFailure,
+		// Note: We deliberately do NOT set ExpiresAfterSeconds here.
+		// Expiring checks are typically temporary and managed via API,
+		// not Terraform. We don't want to tamper with them.
 	}
 
 	check, err := r.client.UpdateCheck(plan.ID.ValueString(), updateReq)
@@ -357,8 +406,16 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Map response to state
 	plan.OrgID = types.StringValue(check.OrgID)
+	plan.ConfigHash = types.StringValue(check.ConfigHash)
+	plan.Inverted = types.BoolValue(check.Inverted)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	// Preserve the expires_after_seconds from API response (read-only for updates)
+	if check.ExpiresAfterSeconds != nil {
+		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
+	} else {
+		plan.ExpiresAfterSeconds = types.Int64Null()
+	}
 	plan.HealthStatus = types.StringValue(check.HealthStatus)
 	if check.LastChecked != nil {
 		plan.LastChecked = types.StringValue(*check.LastChecked)
