@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/quismon/terraform-provider-quismon/internal/client"
@@ -44,7 +44,7 @@ type checkResourceModel struct {
 	ConfigJSON          types.String `tfsdk:"config_json"`
 	ConfigHash          types.String `tfsdk:"config_hash"`
 	IntervalSeconds     types.Int64  `tfsdk:"interval_seconds"`
-	Regions             types.List   `tfsdk:"regions"`
+	Regions             types.Set    `tfsdk:"regions"`
 	Enabled             types.Bool   `tfsdk:"enabled"`
 	Inverted            types.Bool   `tfsdk:"inverted"`
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
@@ -105,12 +105,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "Check interval in seconds (minimum 60).",
 				Required:    true,
 			},
-			"regions": schema.ListAttribute{
-				Description: "Monitoring regions.",
+			"regions": schema.SetAttribute{
+				Description: "Monitoring regions (set - order does not matter, duplicates not allowed).",
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{types.StringValue("us-east-1")})),
+				Default:     setdefault.StaticValue(types.SetValueMust(types.StringType, []attr.Value{types.StringValue("na-east-ewr")})),
 			},
 			"enabled": schema.BoolAttribute{
 				Description: "Whether the check is enabled.",

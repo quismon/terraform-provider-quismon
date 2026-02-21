@@ -668,7 +668,7 @@ resource "quismon_check" "ssl_cert_san" {
 
 Inverted checks alert when something that **shouldn't** be accessible **is**. Perfect for security posture monitoring.
 
-### Alert When Port is Open
+### Alert When Port is Open - Firewall / Blacklist Validation.
 
 ```hcl
 # Alert if database port becomes publicly accessible
