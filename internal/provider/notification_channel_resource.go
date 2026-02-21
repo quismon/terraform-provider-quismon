@@ -148,7 +148,11 @@ func (r *notificationChannelResource) Read(ctx context.Context, req resource.Rea
 
 	channel, err := r.client.GetNotificationChannel(state.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error Reading Notification Channel", err.Error())
+		resp.Diagnostics.AddError(
+			"Error Reading Notification Channel",
+			fmt.Sprintf("Could not read notification channel (id=%s): %s\n\nThis channel may have been deleted. Remove it from state with: terraform state rm quismon_notification_channel.<name>",
+				state.ID.ValueString(), err.Error()),
+		)
 		return
 	}
 

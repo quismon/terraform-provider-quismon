@@ -163,7 +163,11 @@ func (r *alertRuleResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 	rule, err := r.client.GetAlertRule(state.CheckID.ValueString(), state.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Error Reading Alert Rule", err.Error())
+		resp.Diagnostics.AddError(
+			"Error Reading Alert Rule",
+			fmt.Sprintf("Could not read alert rule (check_id=%s, rule_id=%s): %s\n\nThis rule may have been deleted. Remove it from state with: terraform state rm quismon_alert_rule.<name>",
+				state.CheckID.ValueString(), state.ID.ValueString(), err.Error()),
+		)
 		return
 	}
 

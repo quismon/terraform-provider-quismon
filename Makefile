@@ -8,7 +8,7 @@ help: ## Show this help message
 
 # Build the provider
 build: ## Build the Terraform provider
-	go build -o terraform-provider-quismon
+	CGO_ENABLED=0 go build -o terraform-provider-quismon
 
 # Install the provider locally for development
 install: build ## Install provider locally for development
@@ -17,11 +17,11 @@ install: build ## Install provider locally for development
 
 # Run unit tests
 test: ## Run unit tests
-	go test ./... -v -cover
+	CGO_ENABLED=0 go test ./... -v -cover
 
 # Run acceptance tests (requires API key)
 testacc: ## Run acceptance tests (requires API key)
-	TF_ACC=1 go test ./internal/provider -v -timeout 120m
+	CGO_ENABLED=0 TF_ACC=1 go test ./internal/provider -v -timeout 120m
 
 # Run all tests with detailed output
 test-all: ## Run all tests with detailed output
