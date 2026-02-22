@@ -19,6 +19,7 @@ type Check struct {
 	Inverted            bool                   `json:"inverted"` // Alert on success instead of failure
 	SimultaneousRegions bool                   `json:"simultaneous_regions"`
 	RecheckOnFailure    bool                   `json:"recheck_on_failure"`
+	ShowOnStatusPage    bool                   `json:"show_on_status_page"` // Contribute to public status page
 	ExpiresAfterSeconds *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 	HealthStatus        string                 `json:"health_status,omitempty"`
 	LastChecked         *string                `json:"last_checked,omitempty"`
@@ -37,6 +38,7 @@ type CreateCheckRequest struct {
 	Inverted            *bool                  `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions *bool                  `json:"simultaneous_regions,omitempty"`
 	RecheckOnFailure    *bool                  `json:"recheck_on_failure,omitempty"`
+	ShowOnStatusPage    *bool                  `json:"show_on_status_page,omitempty"` // Contribute to public status page
 	ExpiresAfterSeconds *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 }
 
@@ -51,6 +53,7 @@ type UpdateCheckRequest struct {
 	Inverted            *bool                   `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions *bool                   `json:"simultaneous_regions,omitempty"`
 	RecheckOnFailure    *bool                   `json:"recheck_on_failure,omitempty"`
+	ShowOnStatusPage    *bool                   `json:"show_on_status_page,omitempty"` // Contribute to public status page
 	ExpiresAfterSeconds *int                    `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 }
 

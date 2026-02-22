@@ -49,6 +49,7 @@ type checkResourceModel struct {
 	Inverted            types.Bool   `tfsdk:"inverted"`
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
 	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
+	ShowOnStatusPage    types.Bool   `tfsdk:"show_on_status_page"`
 	ExpiresAfterSeconds types.Int64  `tfsdk:"expires_after_seconds"`
 	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
@@ -83,7 +84,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, ssl, multistep, smtp-imap, throughput, or http3.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
@@ -132,6 +133,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"recheck_on_failure": schema.BoolAttribute{
 				Description: "If true, failed checks trigger an immediate recheck from a different region to verify the failure before alerting.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"show_on_status_page": schema.BoolAttribute{
+				Description: "If true, this check contributes to the public status page. Default is false (opt-in).",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -244,6 +251,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Inverted:            plan.Inverted.ValueBoolPointer(),
 		SimultaneousRegions: plan.SimultaneousRegions.ValueBoolPointer(),
 		RecheckOnFailure:    plan.RecheckOnFailure.ValueBoolPointer(),
+		ShowOnStatusPage:    plan.ShowOnStatusPage.ValueBoolPointer(),
 	}
 
 	// Only set expires_after_seconds if it's explicitly set (non-zero)
@@ -268,6 +276,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.Inverted = types.BoolValue(check.Inverted)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	if check.ExpiresAfterSeconds != nil {
 		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
 	} else {
@@ -330,6 +339,7 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Inverted = types.BoolValue(check.Inverted)
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	state.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	if check.ExpiresAfterSeconds != nil {
 		state.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
 	} else {
@@ -400,6 +410,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	inverted := plan.Inverted.ValueBool()
 	simultaneousRegions := plan.SimultaneousRegions.ValueBool()
 	recheckOnFailure := plan.RecheckOnFailure.ValueBool()
+	showOnStatusPage := plan.ShowOnStatusPage.ValueBool()
 
 	updateReq := client.UpdateCheckRequest{
 		Name:                &name,
@@ -411,6 +422,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		Inverted:            &inverted,
 		SimultaneousRegions: &simultaneousRegions,
 		RecheckOnFailure:    &recheckOnFailure,
+		ShowOnStatusPage:    &showOnStatusPage,
 		// Note: We deliberately do NOT set ExpiresAfterSeconds here.
 		// Expiring checks are typically temporary and managed via API,
 		// not Terraform. We don't want to tamper with them.
@@ -431,6 +443,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	plan.Inverted = types.BoolValue(check.Inverted)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	// Preserve the expires_after_seconds from API response (read-only for updates)
 	if check.ExpiresAfterSeconds != nil {
 		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
