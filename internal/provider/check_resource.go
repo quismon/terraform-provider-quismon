@@ -85,7 +85,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{

@@ -15,7 +15,7 @@ The Quismon Terraform provider allows you to manage your monitoring infrastructu
 
 - Terraform >= 1.0
 - Go >= 1.21 (for building from source)
-- Quismon API key
+- Quismon API key (See below for a method for the Provider to generate its own key with one step to workaround Terraform limitations - the Seamless Quickstart)
 
 ## Installation
 

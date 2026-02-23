@@ -63,6 +63,41 @@ resource "quismon_check" "dns_mx_record" {
   }
 }
 
+# DNSSEC Check - Verify domain is DNSSEC-signed
+resource "quismon_check" "dnssec_signed" {
+  name             = "DNSSEC Validation"
+  type             = "dnssec"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    domain        = "internetsociety.org"
+    record_type   = "A"
+    require_signed = true
+    timeout_seconds = 10
+  })
+}
+
+# DNSSEC Check with Custom Nameservers
+resource "quismon_check" "dnssec_custom_ns" {
+  name             = "DNSSEC via Google DNS"
+  type             = "dnssec"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    domain        = "dnssec.works"
+    record_type   = "A"
+    require_signed = true
+    timeout_seconds = 10
+    nameservers   = ["8.8.8.8", "1.1.1.1"]
+  })
+}
+
 # SSL Certificate Check
 resource "quismon_check" "ssl_cert" {
   name             = "API Certificate Expiry"

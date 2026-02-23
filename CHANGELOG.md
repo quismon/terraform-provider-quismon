@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release preparation for Terraform Registry
 
+## [1.1.0] - 2026-02-23
+
+### Added
+
+- **DNSSEC Check Type**: New `dnssec` check type for validating DNSSEC signatures
+  - Validates domains are signed with DNSKEY records
+  - Supports custom nameservers for DNS queries
+  - Optional `require_signed` flag (default: true)
+  - Example: `type = "dnssec"` with `config_json` containing domain, record_type, require_signed, nameservers
+
+- **Per-Step Timeouts in Multistep Checks**: Each step can now have its own timeout
+  - New `timeout_seconds` field on each step (default: 30s, range: 1-300s)
+  - Steps that exceed their timeout fail with clear error message
+  - Total timeout still enforced across all steps
+  - Helps identify which specific API endpoint is slow
+
+- **DNSSEC Support in Multistep Steps**: The `dnssec` type is now available as a step type in multistep checks
+
+### Changed
+
+- Updated check type documentation to include `dnssec` in the list of valid types
+- Updated examples to demonstrate per-step timeout configuration
+- Marketing website updated to reflect 12 check types (was 10)
+
 ## [1.0.4] - 2026-02-17
 
 ### Fixed

@@ -32,14 +32,14 @@ resource "quismon_check" "api_login_flow" {
   config_json = jsonencode({
     steps = [
       {
-        name = "Login"
-        type = "https"
+        name            = "Login"
+        type            = "https"
+        timeout_seconds = 10  # Per-step timeout (max time for this step)
         config = {
           url             = "https://api.example.com/auth/login"
           method          = "POST"
           body            = jsonencode({ email = "monitoring@example.com", password = "secret" })
           expected_status = [200]
-          timeout_seconds = 10
         }
         extracts = {
           auth_token = {
@@ -48,19 +48,19 @@ resource "quismon_check" "api_login_flow" {
         }
       },
       {
-        name = "Get Profile"
-        type = "https"
+        name            = "Get Profile"
+        type            = "https"
+        timeout_seconds = 15  # Per-step timeout
         config = {
-          url     = "https://api.example.com/user/profile"
-          method  = "GET"
-          headers = { Authorization = "Bearer {{auth_token}}" }
+          url             = "https://api.example.com/user/profile"
+          method          = "GET"
+          headers         = { Authorization = "Bearer {{auth_token}}" }
           expected_status = [200]
-          timeout_seconds = 10
         }
       }
     ]
     fail_fast       = true
-    timeout_seconds = 30
+    timeout_seconds = 30  # Total timeout for all steps combined
   })
 }
 
@@ -76,8 +76,9 @@ resource "quismon_check" "checkout_flow" {
   config_json = jsonencode({
     steps = [
       {
-        name = "Get Product"
-        type = "https"
+        name            = "Get Product"
+        type            = "https"
+        timeout_seconds = 10  # Quick product lookup
         config = {
           url             = "https://shop.example.com/api/products/123"
           method          = "GET"
@@ -90,8 +91,9 @@ resource "quismon_check" "checkout_flow" {
         }
       },
       {
-        name = "Add to Cart"
-        type = "https"
+        name            = "Add to Cart"
+        type            = "https"
+        timeout_seconds = 15  # Cart operations may be slower
         config = {
           url             = "https://shop.example.com/api/cart"
           method          = "POST"
@@ -100,8 +102,9 @@ resource "quismon_check" "checkout_flow" {
         }
       },
       {
-        name = "Verify Cart"
-        type = "https"
+        name            = "Verify Cart"
+        type            = "https"
+        timeout_seconds = 10
         config = {
           url             = "https://shop.example.com/api/cart"
           method          = "GET"
@@ -111,7 +114,7 @@ resource "quismon_check" "checkout_flow" {
       }
     ]
     fail_fast       = true
-    timeout_seconds = 45
+    timeout_seconds = 60  # Total timeout for all 3 steps
   })
 }
 
@@ -127,8 +130,9 @@ resource "quismon_check" "api_health_chain" {
   config_json = jsonencode({
     steps = [
       {
-        name = "Health Check"
-        type = "https"
+        name            = "Health Check"
+        type            = "https"
+        timeout_seconds = 5  # Health checks should be fast
         config = {
           url             = "https://api.example.com/health"
           method          = "GET"
@@ -136,8 +140,9 @@ resource "quismon_check" "api_health_chain" {
         }
       },
       {
-        name = "API Status"
-        type = "https"
+        name            = "API Status"
+        type            = "https"
+        timeout_seconds = 5
         config = {
           url             = "https://api.example.com/status"
           method          = "GET"
@@ -145,8 +150,9 @@ resource "quismon_check" "api_health_chain" {
         }
       },
       {
-        name = "Metrics Endpoint"
-        type = "https"
+        name            = "Metrics Endpoint"
+        type            = "https"
+        timeout_seconds = 10  # Metrics may take longer
         config = {
           url             = "https://api.example.com/metrics"
           method          = "GET"

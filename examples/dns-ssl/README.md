@@ -1,12 +1,16 @@
 # DNS & SSL Example
 
-Monitor DNS records and SSL certificates:
+Monitor DNS records, DNSSEC validation, and SSL certificates:
 
 ## Resources Created
 
 ### DNS Checks
 - **A Record** - Verify domain resolves to expected IP
 - **MX Record** - Monitor mail exchange records
+
+### DNSSEC Checks
+- **Signed Domain Validation** - Verify domain is DNSSEC-signed
+- **Custom Nameservers** - Query specific DNS servers for DNSSEC
 
 ### SSL Checks
 - **Certificate Expiry** - Alert when cert expires within 30 days
@@ -25,6 +29,16 @@ EOF
 terraform init
 terraform apply
 ```
+
+## DNSSEC Check Options
+
+| Option | Description |
+|--------|-------------|
+| `domain` | Domain to check for DNSSEC |
+| `record_type` | DNS record type to verify (default: A) |
+| `require_signed` | Fail if domain is not DNSSEC-signed (default: true) |
+| `nameservers` | Optional list of DNS servers to query (e.g., ["8.8.8.8"]) |
+| `timeout_seconds` | Query timeout (default: 10) |
 
 ## SSL Check Options
 

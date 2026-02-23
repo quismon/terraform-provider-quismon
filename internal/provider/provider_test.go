@@ -205,7 +205,7 @@ func TestCheckResourceModel_Types(t *testing.T) {
 		Type:            types.StringValue("https"),
 		Config:          configMap,
 		IntervalSeconds: types.Int64Value(60),
-		Regions: types.ListValueMust(types.StringType, []attr.Value{
+		Regions: types.SetValueMust(types.StringType, []attr.Value{
 			types.StringValue("us-east-1"),
 		}),
 		Enabled: types.BoolValue(true),

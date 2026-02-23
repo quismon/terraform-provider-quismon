@@ -301,3 +301,135 @@ resource "quismon_check" "test" {
 }
 `, name)
 }
+
+// TestAccCheckResource_DNSSEC tests DNSSEC check with custom nameservers
+func TestAccCheckResource_DNSSEC(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_dnssec("test-dnssec"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "name", "test-dnssec"),
+					resource.TestCheckResourceAttr("quismon_check.test", "type", "dnssec"),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckResourceConfig_dnssec(name string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "dnssec"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    domain        = "internetsociety.org"
+    record_type   = "A"
+    require_signed = true
+    timeout_seconds = 10
+  })
+}
+`, name)
+}
+
+// TestAccCheckResource_DNSSECWithNameservers tests DNSSEC check with custom nameservers
+func TestAccCheckResource_DNSSECWithNameservers(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_dnssecWithNameservers("test-dnssec-ns"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "name", "test-dnssec-ns"),
+					resource.TestCheckResourceAttr("quismon_check.test", "type", "dnssec"),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckResourceConfig_dnssecWithNameservers(name string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "dnssec"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    domain        = "dnssec.works"
+    record_type   = "A"
+    require_signed = true
+    timeout_seconds = 10
+    nameservers   = ["8.8.8.8", "1.1.1.1"]
+  })
+}
+`, name)
+}
+
+// TestAccCheckResource_MultistepWithStepTimeouts tests multistep with per-step timeouts
+func TestAccCheckResource_MultistepWithStepTimeouts(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckResourceConfig_multistepTimeouts("test-multistep-timeouts"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "name", "test-multistep-timeouts"),
+					resource.TestCheckResourceAttr("quismon_check.test", "type", "multistep"),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckResourceConfig_multistepTimeouts(name string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "multistep"
+  interval_seconds = 300
+  enabled          = true
+
+  regions = ["us-east-1"]
+
+  config_json = jsonencode({
+    steps = [
+      {
+        name            = "quick-check"
+        type            = "https"
+        timeout_seconds = 5
+        config = {
+          url             = "https://httpbin.org/get"
+          method          = "GET"
+          expected_status = [200]
+        }
+      },
+      {
+        name            = "slower-check"
+        type            = "https"
+        timeout_seconds = 15
+        config = {
+          url             = "https://httpbin.org/delay/2"
+          method          = "GET"
+          expected_status = [200]
+        }
+      }
+    ]
+    fail_fast       = true
+    timeout_seconds = 60
+  })
+}
+`, name)
+}

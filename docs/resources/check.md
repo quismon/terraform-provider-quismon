@@ -19,7 +19,7 @@ Manages a Quismon health check.
 
 - `interval_seconds` (Number) Check interval in seconds (minimum 60).
 - `name` (String) Check name.
-- `type` (String) Check type: http, https, tcp, ping, udp, dns, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.
+- `type` (String) Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.
 
 ### Optional
 
