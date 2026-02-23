@@ -51,6 +51,7 @@ type checkResourceModel struct {
 	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
 	ShowOnStatusPage    types.Bool   `tfsdk:"show_on_status_page"`
 	ExpiresAfterSeconds types.Int64  `tfsdk:"expires_after_seconds"`
+	DependsOn           types.Set    `tfsdk:"depends_on"`
 	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
 	LastChecked         types.String `tfsdk:"last_checked"`
@@ -142,6 +143,11 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
+			},
+			"depends_on": schema.SetAttribute{
+				Description: "List of check IDs that must be healthy before this check runs. If any dependency is unhealthy, this check is skipped with 'dependency_failed' status.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"expires_after_seconds": schema.Int64Attribute{
 				Description: "Check auto-deletes after this many seconds. NULL or 0 means no expiration. Note: expiring checks are typically created via API for temporary monitoring, not via Terraform.",
@@ -240,6 +246,16 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	// Convert depends_on list to []string
+	var dependsOn []string
+	if !plan.DependsOn.IsNull() {
+		diags = plan.DependsOn.ElementsAs(ctx, &dependsOn, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	// Create the check
 	createReq := client.CreateCheckRequest{
 		Name:                plan.Name.ValueString(),
@@ -252,6 +268,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		SimultaneousRegions: plan.SimultaneousRegions.ValueBoolPointer(),
 		RecheckOnFailure:    plan.RecheckOnFailure.ValueBoolPointer(),
 		ShowOnStatusPage:    plan.ShowOnStatusPage.ValueBoolPointer(),
+		DependsOn:           dependsOn,
 	}
 
 	// Only set expires_after_seconds if it's explicitly set (non-zero)
@@ -277,6 +294,12 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
+	if len(check.DependsOn) > 0 {
+		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
+		plan.DependsOn = dependsOnSet
+	} else {
+		plan.DependsOn = types.SetNull(types.StringType)
+	}
 	if check.ExpiresAfterSeconds != nil {
 		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
 	} else {
@@ -340,6 +363,12 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	state.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
+	if len(check.DependsOn) > 0 {
+		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
+		state.DependsOn = dependsOnSet
+	} else {
+		state.DependsOn = types.SetNull(types.StringType)
+	}
 	if check.ExpiresAfterSeconds != nil {
 		state.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
 	} else {
@@ -402,6 +431,16 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	// Convert depends_on list to []string
+	var dependsOn []string
+	if !plan.DependsOn.IsNull() {
+		diags = plan.DependsOn.ElementsAs(ctx, &dependsOn, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	// Update the check
 	name := plan.Name.ValueString()
 	checkType := plan.Type.ValueString()
@@ -423,6 +462,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		SimultaneousRegions: &simultaneousRegions,
 		RecheckOnFailure:    &recheckOnFailure,
 		ShowOnStatusPage:    &showOnStatusPage,
+		DependsOn:           &dependsOn,
 		// Note: We deliberately do NOT set ExpiresAfterSeconds here.
 		// Expiring checks are typically temporary and managed via API,
 		// not Terraform. We don't want to tamper with them.
@@ -444,6 +484,12 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
+	if len(check.DependsOn) > 0 {
+		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
+		plan.DependsOn = dependsOnSet
+	} else {
+		plan.DependsOn = types.SetNull(types.StringType)
+	}
 	// Preserve the expires_after_seconds from API response (read-only for updates)
 	if check.ExpiresAfterSeconds != nil {
 		plan.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
