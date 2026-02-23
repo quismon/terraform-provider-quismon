@@ -1,4 +1,4 @@
-.PHONY: help build install test testacc fmt vet clean
+.PHONY: help build install test testacc fmt vet clean docs generate
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -52,9 +52,13 @@ clean: ## Clean build artifacts
 	rm -f terraform-provider-quismon
 	rm -rf ~/.terraform.d/plugins/registry.terraform.io/quismon/
 
-# Generate documentation
-docs: ## Generate Terraform provider documentation
-	go generate ./...
+# Install terraform-plugin-docs
+install-docs-tool:
+	go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+
+# Generate documentation using terraform-plugin-docs
+generate docs: install-docs-tool ## Generate Terraform provider documentation
+	tfplugindocs generate --provider-name quismon --provider-version $(shell git describe --tags --always 2>/dev/null || echo "1.0.0")
 
 # Run all checks before committing
 check: fmt vet test ## Run all pre-commit checks
