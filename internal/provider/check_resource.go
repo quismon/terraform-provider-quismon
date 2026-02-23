@@ -50,9 +50,9 @@ type checkResourceModel struct {
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
 	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
 	ShowOnStatusPage    types.Bool   `tfsdk:"show_on_status_page"`
-	ExpiresAfterSeconds types.Int64  `tfsdk:"expires_after_seconds"`
-	DependsOn           types.Set    `tfsdk:"depends_on"`
-	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
+	ExpiresAfterSeconds types.Int64 `tfsdk:"expires_after_seconds"`
+	DependsOn           types.Set   `tfsdk:"check_dependencies"`
+	IaCLocked           types.Bool  `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
 	LastChecked         types.String `tfsdk:"last_checked"`
 	CreatedAt           types.String `tfsdk:"created_at"`
@@ -144,7 +144,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
-			"depends_on": schema.SetAttribute{
+			"check_dependencies": schema.SetAttribute{
 				Description: "List of check IDs that must be healthy before this check runs. If any dependency is unhealthy, this check is skipped with 'dependency_failed' status.",
 				Optional:    true,
 				ElementType: types.StringType,
