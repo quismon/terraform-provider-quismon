@@ -484,11 +484,16 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
-	if len(check.DependsOn) > 0 {
-		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
-		plan.DependsOn = dependsOnSet
-	} else {
-		plan.DependsOn = types.SetNull(types.StringType)
+	// Only update DependsOn from API if the plan had a non-null value
+	// This prevents inconsistency when the API preserves old dependencies
+	// but the plan explicitly set check_dependencies to null/empty
+	if !plan.DependsOn.IsNull() {
+		if len(check.DependsOn) > 0 {
+			dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
+			plan.DependsOn = dependsOnSet
+		} else {
+			plan.DependsOn = types.SetNull(types.StringType)
+		}
 	}
 	// Preserve the expires_after_seconds from API response (read-only for updates)
 	if check.ExpiresAfterSeconds != nil {

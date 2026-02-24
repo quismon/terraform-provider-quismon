@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Status</title>
+  <style>
+    :root {
+      --operational: #22c55e;
+      --degraded: #eab308;
+      --partial-outage: #f97316;
+      --major-outage: #ef4444;
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --bg-card: #ffffff;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--text-muted);
+    }
+
+    .overall-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 20px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .status-light {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .status-light.operational {
+      background: var(--operational);
+      box-shadow: 0 0 12px var(--operational);
+    }
+
+    .status-light.degraded {
+      background: var(--degraded);
+      box-shadow: 0 0 12px var(--degraded);
+    }
+
+    .status-light.partial_outage,
+    .status-light.partial-outage {
+      background: var(--partial-outage);
+      box-shadow: 0 0 12px var(--partial-outage);
+    }
+
+    .status-light.major_outage,
+    .status-light.major-outage {
+      background: var(--major-outage);
+      box-shadow: 0 0 12px var(--major-outage);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .overall-status .text {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .services {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .service {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .service:last-child {
+      border-bottom: none;
+    }
+
+    .service-name {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .service-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .service-light.operational {
+      background: var(--operational);
+    }
+
+    .service-light.degraded {
+      background: var(--degraded);
+    }
+
+    .service-light.partial_outage,
+    .service-light.partial-outage {
+      background: var(--partial-outage);
+    }
+
+    .service-light.major_outage,
+    .service-light.major-outage {
+      background: var(--major-outage);
+    }
+
+    .service-info {
+      text-align: right;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .service-info .uptime {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .updated {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .error {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .incidents {
+      margin-top: 32px;
+    }
+
+    .incidents h2 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: var(--text-muted);
+    }
+
+    .incident {
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .incident-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .incident-title {
+      font-weight: 600;
+    }
+
+    .incident-status {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--border);
+    }
+
+    .incident-status.resolved {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--operational);
+    }
+
+    .incident-meta {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Landing page styles */
+    .landing {
+      text-align: left;
+    }
+
+    .landing-section {
+      margin-bottom: 24px;
+    }
+
+    .landing-section h2 {
+      font-size: 1.125rem;
+      margin-bottom: 8px;
+    }
+
+    .landing-section p {
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .landing-features {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .landing-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .landing-feature .feature-icon {
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .landing-feature strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .landing-feature span {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .landing-code {
+      display: block;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      margin: 12px 0;
+      word-break: break-all;
+    }
+
+    .landing-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    .landing-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: var(--operational);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+
+    .landing-btn:hover {
+      opacity: 0.9;
+    }
+
+    .landing-btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .landing-btn-outline:hover {
+      background: var(--bg-card);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 id="title">System Status</h1>
+      <p id="description">Loading...</p>
+    </div>
+
+    <div id="content">
+      <div class="error">Loading status...</div>
+    </div>
+
+    <p class="updated" id="updated"></p>
+  </div>
+
+  <script>
+    // Get slug from URL path
+    const path = window.location.pathname;
+    const pathParts = path.split('/').filter(p => p);
+    const slug = pathParts[pathParts.length - 1] || '';
+
+    // Check if we're at the root (no slug provided)
+    if (!slug || slug === 'status') {
+      // Show landing page for status pages
+      document.addEventListener('DOMContentLoaded', () => {
+        renderLandingPage();
+      });
+    } else {
+      // Load status page
+      document.addEventListener('DOMContentLoaded', () => {
+        loadStatus();
+      });
+    }
+
+    // Render landing page when no slug provided
+    function renderLandingPage() {
+      document.getElementById('title').textContent = 'Status Pages';
+      document.getElementById('description').textContent = 'Share your system health with your users';
+
+      document.getElementById('content').innerHTML = `
+        <div class="landing">
+          <div class="landing-section">
+            <h2>What are Status Pages?</h2>
+            <p>Status pages are public (or private) dashboards that show the health of your services.
+            Keep your users informed about outages, maintenance windows, and system performance.</p>
+          </div>
+
+          <div class="landing-features">
+            <div class="landing-feature">
+              <span class="feature-icon">📊</span>
+              <div>
+                <strong>Real-time Updates</strong>
+                <span>Automatically reflects the current state of your checks</span>
+              </div>
+            </div>
+            <div class="landing-feature">
+              <span class="feature-icon">🔒</span>
+              <div>
+                <strong>Access Control</strong>
+                <span>Public, password-protected, token-based, or domain-restricted</span>
+              </div>
+            </div>
+            <div class="landing-feature">
+              <span class="feature-icon">📋</span>
+              <div>
+                <strong>Incident History</strong>
+                <span>Show past incidents with configurable retention</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="landing-section">
+            <h2>Creating a Status Page</h2>
+            <p>Each status page gets a unique URL:</p>
+            <code class="landing-code">https://status.quismon.com/your-slug</code>
+            <p>Customize the appearance, select which checks to display, and configure access controls.</p>
+          </div>
+
+          <div class="landing-actions">
+            <a href="https://console.quismon.com" class="landing-btn">Create Status Page</a>
+            <a href="https://docs.quismon.com/guide/status-pages" class="landing-btn landing-btn-outline">View Documentation</a>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('updated').innerHTML = 'Powered by <a href="https://quismon.com" style="color: var(--operational);">Quismon</a>';
+    }
+
+    // Fetch status data
+    async function loadStatus() {
+      try {
+        const response = await fetch(`/status/${slug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            renderNotFound();
+            return;
+          }
+          throw new Error('Failed to load status');
+        }
+
+        const data = await response.json();
+        renderStatus(data);
+      } catch (err) {
+        document.getElementById('content').innerHTML = `
+          <div class="error">
+            Unable to load status page. Please try again later.
+          </div>
+        `;
+      }
+    }
+
+    // Render not found page
+    function renderNotFound() {
+      document.getElementById('title').textContent = 'Status Page Not Found';
+      document.getElementById('description').textContent = 'The requested status page does not exist';
+
+      document.getElementById('content').innerHTML = `
+        <div class="error">
+          <p style="margin-bottom: 20px;">This status page doesn't exist or has been removed.</p>
+          <p style="margin-bottom: 20px;">If you're looking to create a status page, <a href="https://console.quismon.com" style="color: var(--operational);">sign in to Quismon</a>.</p>
+          <p>Learn more about status pages in our <a href="https://docs.quismon.com/guide/status-pages" style="color: var(--operational);">documentation</a>.</p>
+        </div>
+      `;
+    }
+
+    function renderStatus(data) {
+      // Update header
+      document.getElementById('title').textContent = data.title || 'System Status';
+      document.getElementById('description').textContent = data.description || '';
+
+      // Overall status
+      const overallStatusText = {
+        'operational': 'All Systems Operational',
+        'degraded': 'Degraded Performance',
+        'partial_outage': 'Partial System Outage',
+        'major_outage': 'Major System Outage'
+      };
+
+      let html = `
+        <div class="overall-status">
+          <div class="status-light ${data.overall_status}"></div>
+          <span class="text">${overallStatusText[data.overall_status] || 'Unknown Status'}</span>
+        </div>
+      `;
+
+      // Services
+      if (data.services && data.services.length > 0) {
+        html += '<div class="services">';
+        for (const service of data.services) {
+          html += `
+            <div class="service">
+              <div class="service-name">
+                <div class="service-light ${service.status}"></div>
+                <span>${escapeHtml(service.name)}</span>
+              </div>
+              <div class="service-info">
+                <span class="uptime">${service.uptime_30d || 99.9}%</span> uptime
+              </div>
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+
+      // Incidents
+      if (data.incidents && data.incidents.length > 0) {
+        html += '<div class="incidents"><h2>Recent Incidents</h2>';
+        for (const incident of data.incidents) {
+          const timeAgo = getTimeAgo(new Date(incident.started_at));
+          html += `
+            <div class="incident">
+              <div class="incident-header">
+                <span class="incident-title">${escapeHtml(incident.title)}</span>
+                <span class="incident-status ${incident.status}">${incident.status}</span>
+              </div>
+              <div class="incident-meta">
+                ${timeAgo} ago
+                ${incident.affected_services ? ' &bull; ' + escapeHtml(incident.affected_services.join(', ')) : ''}
+              </div>
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+
+      document.getElementById('content').innerHTML = html;
+
+      // Update timestamp
+      if (data.updated_at) {
+        document.getElementById('updated').textContent =
+          `Last updated ${getTimeAgo(new Date(data.updated_at))} ago`;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+    }
+
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return `${seconds}s`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h`;
+      const days = Math.floor(hours / 24);
+      return `${days}d`;
+    }
+
+    // Load on page load
+    loadStatus();
+
+    // Refresh every 60 seconds
+    setInterval(loadStatus, 60000);
+  </script>
+</body>
+</html>
