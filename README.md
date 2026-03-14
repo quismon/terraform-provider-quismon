@@ -4,7 +4,7 @@ The Quismon Terraform provider allows you to manage your monitoring infrastructu
 
 ## Features
 
-- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, SSL, HTTP/3, Throughput, SMTP/IMAP, and Multi-step health checks
+- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, DNSSEC, SSL, HTTP/3, Throughput, SMTP/IMAP, Traceroute, and Multi-step health checks
 - **Alert Rules**: Configure alert conditions using flexible condition maps
 - **Notification Channels**: Set up email, ntfy, webhook, and Slack notifications
 - **Custom Templates**: Use template variables for personalized alert messages
@@ -504,9 +504,64 @@ resource "quismon_check" "dns_spf" {
 
   regions = ["us-east-1"]
 }
+
+# DNS Check with Custom Nameservers
+# Query specific DNS servers instead of using system defaults
+resource "quismon_check" "dns_google_dns" {
+  name             = "DNS via Google"
+  type             = "dns"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    domain       = "example.com"
+    record_type  = "A"
+    nameservers  = ["8.8.8.8", "8.8.4.4"]
+  })
+
+  regions = ["us-east-1"]
+}
+
+# DNS Check using Cloudflare DNS
+resource "quismon_check" "dns_cloudflare" {
+  name             = "DNS via Cloudflare"
+  type             = "dns"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    domain       = "example.com"
+    record_type  = "A"
+    nameservers  = ["1.1.1.1"]
+  })
+
+  regions = ["us-east-1"]
+}
 ```
 
 **DNS Record Types**: `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SOA`
+
+**Custom Nameservers**: Optionally specify `nameservers` to query specific DNS servers instead of using system defaults. Multiple nameservers are tried in order with automatic fallback on failure.
+
+**TTL Monitoring**: DNS checks always include `min_ttl` and `max_ttl` in results metadata.
+
+- `expected_max_ttl`: Fail if TTL exceeds this value. Use before DNS migrations to ensure changes propagate quickly.
+- `expected_min_ttl`: Fail if TTL is below this value. Only useful when querying **authoritative nameservers directly** (set `nameservers` to your auth NS) to detect if someone accidentally lowered the zone TTL. Lower TTLs = more queries to your nameservers = higher load.
+
+```hcl
+# Pre-migration: ensure TTL is low for fast propagation
+config_json = jsonencode({
+  domain            = "api.example.com"
+  record_type       = "A"
+  expected_max_ttl  = 300  # 5 min max
+})
+
+# High-traffic event prep: ensure TTL is high to reduce nameserver load
+config_json = jsonencode({
+  domain            = "promo.example.com"
+  record_type       = "A"
+  nameservers       = ["ns1.example.com"]  # Query authoritative directly
+  expected_min_ttl  = 3600  # 1 hour min
+})
+```
 
 ### HTTP/3 (QUIC) Check
 
@@ -577,7 +632,7 @@ resource "quismon_check" "throughput" {
 
 ### SMTP/IMAP Check
 
-End-to-end email delivery testing:
+End-to-end email delivery testing with optional authentication validation:
 
 ```hcl
 resource "quismon_check" "smtp_imap" {
@@ -609,6 +664,53 @@ resource "quismon_check" "smtp_imap" {
   enabled = true
 }
 ```
+
+**With Email Authentication Validation** (optional):
+
+The SMTP/IMAP check can validate that emails pass SPF, DKIM, and DMARC authentication by parsing the `Authentication-Results` header in the received email:
+
+```hcl
+resource "quismon_check" "email_auth" {
+  name             = "Email Authentication Test"
+  type             = "smtp-imap"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    smtp_host        = "smtp.example.com"
+    smtp_port        = 587
+    smtp_username    = "monitoring@example.com"
+    smtp_password    = var.smtp_password
+
+    imap_host        = "imap.example.com"
+    imap_port        = 993
+
+    from_address     = "monitoring@example.com"
+    to_address       = "inbox@example.com"
+    subject          = "Quismon Auth Test - {{message_id}}"
+    body             = "Testing email authentication."
+
+    timeout_seconds  = 30
+    max_wait_seconds = 60
+
+    # Optional: Require email authentication to pass
+    require_spf_pass  = true   # Fail check if SPF doesn't pass
+    require_dkim_pass = true   # Fail check if DKIM doesn't pass
+    require_dmarc_pass = true  # Fail check if DMARC doesn't pass
+  })
+
+  regions = ["na-east-ewr"]
+  enabled = true
+}
+```
+
+**How it works**:
+1. Sends a test email via SMTP
+2. Waits for email to arrive in IMAP inbox
+3. Fetches email headers and parses `Authentication-Results` header
+4. Reports SPF/DKIM/DMARC status in check metadata (`spf_result`, `dkim_result`, `dmarc_result`)
+5. If `require_*_pass` options are set, fails the check if authentication doesn't pass
+
+**Note**: This validates real email authentication in actual mail flow, not just DNS records. The receiving mail server must add `Authentication-Results` headers for this to work.
 
 ### SSL Certificate Check
 
@@ -663,6 +765,111 @@ resource "quismon_check" "ssl_cert_san" {
   regions = ["us-east-1"]
 }
 ```
+
+### Traceroute Check
+
+Monitor network paths and detect routing changes:
+
+```hcl
+resource "quismon_check" "traceroute" {
+  name             = "Network Path to API"
+  type             = "traceroute"
+  interval_seconds = 300
+
+  config_json = jsonencode({
+    host               = "api.example.com"
+    max_hops           = 30
+    timeout_seconds    = 60
+    require_completion = true  # Fail if traceroute doesn't reach destination
+  })
+
+  regions = ["na-east-ewr", "eu-west-ams"]
+  enabled = true
+}
+```
+
+**Note**: Traceroute checks require the target host to respond to ICMP ping. Hosts that block ICMP cannot be traceroute monitored.
+
+### Email Security Checks
+
+Monitor SPF, DKIM, and DMARC records for email authentication:
+
+#### SPF Check
+
+```hcl
+resource "quismon_check" "spf" {
+  name             = "SPF Record Validation"
+  type             = "spf"
+  interval_seconds = 3600
+
+  config_json = jsonencode({
+    domain           = "example.com"
+    expected_includes = ["_spf.google.com", "sendgrid.net"]
+    # Warns if using soft fail (~all) instead of hard fail (-all)
+  })
+
+  regions = ["us-east-1"]
+  enabled = true
+}
+```
+
+**SPF validates**:
+- Record exists with `v=spf1` version
+- Expected IP addresses are included
+- Expected include domains are present
+- Uses hard fail (`-all`) vs soft fail (`~all`)
+
+#### DKIM Check
+
+```hcl
+resource "quismon_check" "dkim" {
+  name             = "DKIM Key Validation"
+  type             = "dkim"
+  interval_seconds = 3600
+
+  config_json = jsonencode({
+    domain         = "example.com"
+    selector       = "default"  # Or "google", "mail", etc.
+    min_key_length = 2048       # Warn if key is too weak
+    # Optional: expected_key_hash to detect key changes
+  })
+
+  regions = ["us-east-1"]
+  enabled = true
+}
+```
+
+**DKIM validates**:
+- Record exists at `{selector}._domainkey.{domain}`
+- Public key is present and valid
+- Key length meets minimum requirement
+- Key fingerprint for change detection
+
+#### DMARC Check
+
+```hcl
+resource "quismon_check" "dmarc" {
+  name             = "DMARC Policy Validation"
+  type             = "dmarc"
+  interval_seconds = 3600
+
+  config_json = jsonencode({
+    domain                = "example.com"
+    expected_policy       = "reject"  # none, quarantine, or reject
+    expected_pct          = 100       # Percentage of emails to apply policy
+    require_aggregate_reports = true  # Require rua (aggregate report endpoint)
+  })
+
+  regions = ["us-east-1"]
+  enabled = true
+}
+```
+
+**DMARC validates**:
+- Record exists at `_dmarc.{domain}`
+- Policy matches expected (none/quarantine/reject)
+- Percentage (pct) matches expected
+- Aggregate report endpoint (rua) is configured
 
 ## Inverted Checks (Security Monitoring)
 
@@ -900,7 +1107,7 @@ output "api_key" {
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
 | `name` | String | Yes | Check name |
-| `type` | String | Yes | Check type: `http`, `https`, `tcp`, `ping`, `dns`, or `ssl` |
+| `type` | String | Yes | Check type: `http`, `https`, `tcp`, `ping`, `dns`, `dnssec`, `ssl`, `http3`, `throughput`, `smtp-imap`, `traceroute`, or `multistep` |
 | `config` | Map | Yes | Check-specific configuration (see examples above) |
 | `interval_seconds` | Number | Yes | Check interval in seconds (minimum 60) |
 | `regions` | List | No | Monitoring regions (default: `["us-east-1"]`) |
