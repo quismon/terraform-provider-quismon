@@ -85,9 +85,9 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, or dmarc.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute.",
 				Required:    true,
-			},
+            },
 			"config": schema.MapAttribute{
 				Description: "Check-specific configuration (for simple types). Use config_json for complex nested configs like multistep. Password fields (smtp_password, imap_password, password) are sensitive and cannot be re-read from the API.",
 				Optional:    true,
@@ -236,6 +236,17 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 			"Either 'config' or 'config_json' must be specified",
 		)
 		return
+	}
+
+	// Validate Playwright configuration at plan time
+	if plan.Type.ValueString() == "playwright" {
+		if err := validatePlaywrightConfig(configMap); err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid Playwright Configuration",
+				err.Error(),
+			)
+			return
+		}
 	}
 
 	// Convert regions list to []string
@@ -420,6 +431,17 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 			if strVal, ok := value.(types.String); ok {
 				configMap[key] = strVal.ValueString()
 			}
+		}
+	}
+
+	// Validate Playwright configuration at plan time (if config is being updated)
+	if plan.Type.ValueString() == "playwright" && len(configMap) > 0 {
+		if err := validatePlaywrightConfig(configMap); err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid Playwright Configuration",
+				err.Error(),
+			)
+			return
 		}
 	}
 
