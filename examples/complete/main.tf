@@ -103,6 +103,7 @@ resource "quismon_alert_rule" "api_consecutive_failures" {
 
   condition = {
     failure_threshold = 3
+    severity          = "critical"
   }
 
   notification_channel_ids = [
@@ -174,4 +175,21 @@ output "all_checks" {
     database = quismon_check.database.id
     gateway  = quismon_check.gateway.id
   }
+}
+
+# SSL certificate expiry warning at a custom threshold (fires even while the
+# ssl check itself is still healthy - the check's own warning window is 30 days)
+resource "quismon_alert_rule" "cert_expiring_soon" {
+  check_id = quismon_check.api.id
+  name     = "Cert expiring within 14 days"
+  enabled  = true
+
+  condition = {
+    ssl_days_remaining = "14"
+    severity           = "warning"
+  }
+
+  notification_channel_ids = [quismon_notification_channel.email.id]
+
+  notify_on = "unhealthy"
 }

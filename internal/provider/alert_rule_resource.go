@@ -34,6 +34,8 @@ type alertRuleResourceModel struct {
 	Name                   types.String `tfsdk:"name"`
 	Condition              types.Map    `tfsdk:"condition"`
 	NotificationChannelIDs types.List   `tfsdk:"notification_channel_ids"`
+	NotifyOn               types.String `tfsdk:"notify_on"`
+	MessageTemplate        types.String `tfsdk:"message_template"`
 	Enabled                types.Bool   `tfsdk:"enabled"`
 	CreatedAt              types.String `tfsdk:"created_at"`
 	UpdatedAt              types.String `tfsdk:"updated_at"`
@@ -66,7 +68,7 @@ func (r *alertRuleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Required:    true,
 			},
 			"condition": schema.MapAttribute{
-				Description: "Condition that triggers the alert. Examples: {\"health_status\": \"down\"}, {\"failure_threshold\": \"3\"}, {\"response_time_ms\": \"5000\"}. Values must be strings.",
+				Description: "Condition keys combine additively (fires when ANY matches). Supported: health_status (\"down\"), failure_threshold (consecutive failures), response_time_ms, dns_changed (true), ssl_days_remaining (fire when an ssl check reports the certificate expires within N days), severity (warning|critical). Values must be strings. Example: {\"failure_threshold\": \"3\", \"severity\": \"critical\"}.",
 				Required:    true,
 				ElementType: types.StringType,
 			},
@@ -74,6 +76,14 @@ func (r *alertRuleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "List of notification channel IDs.",
 				Required:    true,
 				ElementType: types.StringType,
+			},
+			"notify_on": schema.StringAttribute{
+				Description: "When to notify: unhealthy (default), healthy, or both.",
+				Optional:    true,
+			},
+			"message_template": schema.StringAttribute{
+				Description: "Optional custom notification message template. Supports template variables - see GET /v1/alerts/template-variables.",
+				Optional:    true,
 			},
 			"enabled": schema.BoolAttribute{
 				Description: "Whether the alert rule is enabled.",
@@ -136,6 +146,8 @@ func (r *alertRuleResource) Create(ctx context.Context, req resource.CreateReque
 		Name:                   plan.Name.ValueString(),
 		Condition:              conditionMap,
 		NotificationChannelIDs: channelIDs,
+		NotifyOn:               optionalString(plan.NotifyOn),
+		MessageTemplate:        optionalString(plan.MessageTemplate),
 		Enabled:                plan.Enabled.ValueBool(),
 	}
 
@@ -148,6 +160,16 @@ func (r *alertRuleResource) Create(ctx context.Context, req resource.CreateReque
 	plan.ID = types.StringValue(rule.ID)
 	plan.CreatedAt = types.StringValue(rule.CreatedAt)
 	plan.UpdatedAt = types.StringValue(rule.UpdatedAt)
+	if rule.NotifyOn != "" {
+		plan.NotifyOn = types.StringValue(rule.NotifyOn)
+	} else {
+		plan.NotifyOn = types.StringNull()
+	}
+	if rule.MessageTemplate != "" {
+		plan.MessageTemplate = types.StringValue(rule.MessageTemplate)
+	} else {
+		plan.MessageTemplate = types.StringNull()
+	}
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -239,6 +261,22 @@ func (r *alertRuleResource) Update(ctx context.Context, req resource.UpdateReque
 		updateReq.NotificationChannelIDs = &channelIDs
 	}
 
+	// Check if notify_on changed
+	if !plan.NotifyOn.Equal(state.NotifyOn) {
+		v := plan.NotifyOn.ValueString()
+		updateReq.NotifyOn = &v
+	}
+
+	// Check if message_template changed
+	if !plan.MessageTemplate.Equal(state.MessageTemplate) {
+		v := plan.MessageTemplate.ValueString()
+		if v == "" {
+			v = " "
+			// API has no null-clear; empty string clears the template server-side
+		}
+		updateReq.MessageTemplate = &v
+	}
+
 	// Check if enabled changed
 	if plan.Enabled.ValueBool() != state.Enabled.ValueBool() {
 		enabled := plan.Enabled.ValueBool()
@@ -256,6 +294,16 @@ func (r *alertRuleResource) Update(ctx context.Context, req resource.UpdateReque
 	plan.ID = types.StringValue(rule.ID)
 	plan.CreatedAt = types.StringValue(rule.CreatedAt)
 	plan.UpdatedAt = types.StringValue(rule.UpdatedAt)
+	if rule.NotifyOn != "" {
+		plan.NotifyOn = types.StringValue(rule.NotifyOn)
+	} else {
+		plan.NotifyOn = types.StringNull()
+	}
+	if rule.MessageTemplate != "" {
+		plan.MessageTemplate = types.StringValue(rule.MessageTemplate)
+	} else {
+		plan.MessageTemplate = types.StringNull()
+	}
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -293,4 +341,13 @@ func (r *alertRuleResource) ImportState(ctx context.Context, req resource.Import
 	// Set both check_id and id in state
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("check_id"), checkID)...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), ruleID)...)
+}
+
+// optionalString converts a Terraform string to *string; nil when null/unknown.
+func optionalString(v types.String) *string {
+	if v.IsNull() || v.IsUnknown() || v.ValueString() == "" {
+		return nil
+	}
+	val := v.ValueString()
+	return &val
 }

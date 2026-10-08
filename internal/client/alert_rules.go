@@ -12,6 +12,8 @@ type AlertRule struct {
 	Name                   string                 `json:"name"`
 	Condition              map[string]interface{} `json:"condition"`
 	NotificationChannelIDs []string               `json:"notification_channel_ids"`
+	NotifyOn               string                 `json:"notify_on,omitempty"`
+	MessageTemplate        string                 `json:"message_template,omitempty"`
 	Enabled                bool                   `json:"enabled"`
 	CreatedAt              string                 `json:"created_at"`
 	UpdatedAt              string                 `json:"updated_at"`
@@ -22,6 +24,8 @@ type CreateAlertRuleRequest struct {
 	Name                   string                 `json:"name"`
 	Condition              map[string]interface{} `json:"condition"`
 	NotificationChannelIDs []string               `json:"notification_channel_ids"`
+	NotifyOn               *string                `json:"notify_on,omitempty"`
+	MessageTemplate        *string                `json:"message_template,omitempty"`
 	Enabled                bool                   `json:"enabled"`
 }
 
@@ -30,6 +34,8 @@ type UpdateAlertRuleRequest struct {
 	Name                   *string                 `json:"name,omitempty"`
 	Condition              *map[string]interface{} `json:"condition,omitempty"`
 	NotificationChannelIDs *[]string               `json:"notification_channel_ids,omitempty"`
+	NotifyOn               *string                 `json:"notify_on,omitempty"`
+	MessageTemplate        *string                 `json:"message_template,omitempty"`
 	Enabled                *bool                   `json:"enabled,omitempty"`
 }
 

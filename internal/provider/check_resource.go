@@ -50,9 +50,9 @@ type checkResourceModel struct {
 	SimultaneousRegions types.Bool   `tfsdk:"simultaneous_regions"`
 	RecheckOnFailure    types.Bool   `tfsdk:"recheck_on_failure"`
 	ShowOnStatusPage    types.Bool   `tfsdk:"show_on_status_page"`
-	ExpiresAfterSeconds types.Int64 `tfsdk:"expires_after_seconds"`
-	DependsOn           types.Set   `tfsdk:"check_dependencies"`
-	IaCLocked           types.Bool  `tfsdk:"iac_locked"`
+	ExpiresAfterSeconds types.Int64  `tfsdk:"expires_after_seconds"`
+	DependsOn           types.Set    `tfsdk:"check_dependencies"`
+	IaCLocked           types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus        types.String `tfsdk:"health_status"`
 	LastChecked         types.String `tfsdk:"last_checked"`
 	CreatedAt           types.String `tfsdk:"created_at"`
@@ -87,7 +87,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"type": schema.StringAttribute{
 				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute.",
 				Required:    true,
-            },
+			},
 			"config": schema.MapAttribute{
 				Description: "Check-specific configuration (for simple types). Use config_json for complex nested configs like multistep. Password fields (smtp_password, imap_password, password) are sensitive and cannot be re-read from the API.",
 				Optional:    true,

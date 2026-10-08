@@ -32,10 +32,10 @@ type organizationOTLPResource struct {
 
 // organizationOTLPResourceModel maps the resource schema data.
 type organizationOTLPResourceModel struct {
-	Enabled                types.Bool   `tfsdk:"enabled"`
-	Endpoint               types.String `tfsdk:"endpoint"`
-	Headers                types.Map    `tfsdk:"headers"`
-	ExportIntervalSeconds  types.Int64  `tfsdk:"export_interval_seconds"`
+	Enabled               types.Bool   `tfsdk:"enabled"`
+	Endpoint              types.String `tfsdk:"endpoint"`
+	Headers               types.Map    `tfsdk:"headers"`
+	ExportIntervalSeconds types.Int64  `tfsdk:"export_interval_seconds"`
 }
 
 // Metadata returns the resource type name.
@@ -347,10 +347,10 @@ func (r *organizationOTLPResource) ImportState(ctx context.Context, req resource
 
 // OTLPConfigResponse represents the OTLP config API response
 type OTLPConfigResponse struct {
-	Enabled                bool                    `json:"otlp_enabled"`
-	Endpoint               *string                 `json:"otlp_endpoint"`
-	Headers                map[string]interface{}  `json:"otlp_headers"`
-	ExportIntervalSeconds  *int                    `json:"otlp_export_interval_seconds"`
+	Enabled               bool                   `json:"otlp_enabled"`
+	Endpoint              *string                `json:"otlp_endpoint"`
+	Headers               map[string]interface{} `json:"otlp_headers"`
+	ExportIntervalSeconds *int                   `json:"otlp_export_interval_seconds"`
 }
 
 // getOTLPConfig fetches the current OTLP configuration
