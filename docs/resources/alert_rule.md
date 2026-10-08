@@ -18,13 +18,15 @@ Manages a Quismon alert rule.
 ### Required
 
 - `check_id` (String) ID of the check to monitor. Changing this will force recreation of the alert rule.
-- `condition` (Map of String) Condition that triggers the alert. Examples: {"health_status": "down"}, {"failure_threshold": "3"}, {"response_time_ms": "5000"}. Values must be strings.
+- `condition` (Map of String) Condition keys combine additively (fires when ANY matches). Supported: health_status ("down"), failure_threshold (consecutive failures), response_time_ms, dns_changed (true), ssl_days_remaining (fire when an ssl check reports the certificate expires within N days), severity (warning|critical). Values must be strings. Example: {"failure_threshold": "3", "severity": "critical"}.
 - `name` (String) Alert rule name.
 - `notification_channel_ids` (List of String) List of notification channel IDs.
 
 ### Optional
 
 - `enabled` (Boolean) Whether the alert rule is enabled.
+- `message_template` (String) Optional custom notification message template. Supports template variables - see GET /v1/alerts/template-variables.
+- `notify_on` (String) When to notify: unhealthy (default), healthy, or both.
 
 ### Read-Only
 
