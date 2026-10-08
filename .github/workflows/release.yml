@@ -33,13 +33,14 @@ jobs:
           go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
           tfplugindocs generate --provider-name quismon
 
-      - name: Commit Documentation
+      # NOTE: docs must be committed and pushed BEFORE tagging (tfplugindocs
+      # output committed locally). Committing inside this workflow moves the
+      # tag and goreleaser aborts with "tag was not made against commit".
+      - name: Verify docs are up to date
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/ || true
-          git diff --quiet --cached || git commit -m "Update documentation [skip ci]"
-          git push origin HEAD:${{ github.ref_name }} || true
+          go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
+          tfplugindocs generate --provider-name quismon
+          git diff --quiet docs/ || { echo "::error::docs/ out of date - run tfplugindocs generate locally and commit"; git diff --name-only docs/; exit 1; }
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
