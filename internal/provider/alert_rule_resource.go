@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -138,7 +139,7 @@ func (r *alertRuleResource) Create(ctx context.Context, req resource.CreateReque
 	conditionMap := make(map[string]interface{})
 	for key, value := range plan.Condition.Elements() {
 		if strVal, ok := value.(types.String); ok {
-			conditionMap[key] = strVal.ValueString()
+			conditionMap[key] = conditionValue(key, strVal.ValueString())
 		}
 	}
 
@@ -250,7 +251,7 @@ func (r *alertRuleResource) Update(ctx context.Context, req resource.UpdateReque
 		conditionMap := make(map[string]interface{})
 		for key, value := range plan.Condition.Elements() {
 			if strVal, ok := value.(types.String); ok {
-				conditionMap[key] = strVal.ValueString()
+				conditionMap[key] = conditionValue(key, strVal.ValueString())
 			}
 		}
 		updateReq.Condition = &conditionMap
@@ -350,4 +351,34 @@ func optionalString(v types.String) *string {
 	}
 	val := v.ValueString()
 	return &val
+}
+
+// conditionNumericKeys are alert-condition keys whose values must be JSON
+// numbers. The condition schema is a map of strings (Terraform limitation),
+// so without this conversion every threshold was sent as a string ("3") and
+// the processor's evaluator (which expects float64) silently ignored it —
+// the rule never fired (2026-10-09 audit finding: 25 production rules).
+func conditionNumericKeys() map[string]bool {
+	return map[string]bool{
+		"failure_threshold":    true,
+		"consecutive_failures": true,
+		"response_time_ms":     true,
+		"ssl_days_remaining":   true,
+		"threshold":            true,
+		"threshold_ms":         true,
+		"days_before_expiry":   true,
+	}
+}
+
+// conditionValue converts a Terraform string condition value to the type the
+// API expects for that key: numbers for numeric keys, strings otherwise.
+// Values that cannot be parsed as numbers are passed through unchanged so
+// the API's condition validation produces a helpful error.
+func conditionValue(key, value string) interface{} {
+	if conditionNumericKeys()[key] {
+		if f, err := strconv.ParseFloat(value, 64); err == nil {
+			return f
+		}
+	}
+	return value
 }

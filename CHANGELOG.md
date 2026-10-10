@@ -21,6 +21,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute description (health_status, failure_threshold, response_time_ms,
   dns_changed, ssl_days_remaining, severity)
 
+## [1.1.3] - 2026-10-10
+
+### Fixed
+
+- **Numeric condition values are now sent as JSON numbers**: the `condition`
+  map (string-typed by the plugin framework) converted every value to a
+  string, so `failure_threshold = 3` was stored as `"3"` and the processor's
+  evaluator silently ignored it — rules created via Terraform could never
+  fire (2026-10-09 audit: 25 production rules affected). Numeric condition
+  keys (`failure_threshold`, `consecutive_failures`, `response_time_ms`,
+  `ssl_days_remaining`, `threshold`, `threshold_ms`, `days_before_expiry`)
+  are now converted to numbers; non-numeric values pass through so the API's
+  validation returns a helpful error.
+
 ## [Unreleased]
 
 ### Added
