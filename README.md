@@ -442,6 +442,29 @@ resource "quismon_check" "redis_server" {
 }
 ```
 
+### Starts-Broken Check (TDD monitoring)
+
+Create the check **before** deploying the service. It runs (and shows
+unhealthy) but does not alert until its first success; after that it behaves
+like any normal check:
+
+```hcl
+resource "quismon_check" "new_service" {
+  name             = "New Service Health"
+  type             = "https"
+  interval_seconds = 60
+
+  alert_after_first_success = true
+
+  config = {
+    url             = "https://new-service.example.com/health"
+    expected_status = "200"
+  }
+
+  regions = ["na-east-ewr"]
+}
+```
+
 ### Ping Check
 
 ```hcl
