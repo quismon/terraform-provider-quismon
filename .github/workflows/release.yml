@@ -45,12 +45,16 @@ jobs:
       # tag and goreleaser aborts with "tag was not made against commit".
       - name: Verify docs are up to date
         # Advisory: tfplugindocs version drift between local and CI renders
-        # can false-positive this check; release proceeds, diffs stay visible.
+        # can false-positive this check; release proceeds, diffs stay visible
+        # in the step log. The tree is restored afterwards: goreleaser
+        # refuses to run on a dirty git state.
         continue-on-error: true
         run: |
           GOBIN=$(go env GOPATH)/bin go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
           tfplugindocs generate --provider-name quismon
-          git diff --quiet docs/ || { echo "::error::docs/ out of date - run tfplugindocs generate locally and commit"; git diff --name-only docs/; exit 1; }
+          git diff --quiet docs/ || { echo "::warning::docs/ out of date - run tfplugindocs generate locally and commit"; git diff --name-only docs/; }
+          git checkout -- docs/ 2>/dev/null || true
+          git clean -fd docs/ 2>/dev/null || true
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
