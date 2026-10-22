@@ -28,20 +28,21 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      - name: Generate Documentation
-        run: |
-          go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
-          tfplugindocs generate --provider-name quismon
-
-      # NOTE: docs must be committed and pushed BEFORE tagging (tfplugindocs
-      # output committed locally). Committing inside this workflow moves the
-      # tag and goreleaser aborts with "tag was not made against commit".
       - name: Set up Terraform (tfplugindocs uses PATH; hc-install downloads fail on expired keys)
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
           terraform_wrapper: false
 
+      - name: Generate Documentation
+        run: |
+          go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
+          tfplugindocs generate --provider-name quismon
+
+
+      # NOTE: docs must be committed and pushed BEFORE tagging (tfplugindocs
+      # output committed locally). Committing inside this workflow moves the
+      # tag and goreleaser aborts with "tag was not made against commit".
       - name: Verify docs are up to date
         run: |
           GOBIN=$(go env GOPATH)/bin go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
