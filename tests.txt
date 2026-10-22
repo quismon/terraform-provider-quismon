@@ -1,6 +1,0 @@
-internal/provider/alert_rule_resource.go
-internal/provider/check_resource.go
-internal/provider/data_source.go
-internal/provider/integration.go
-internal/provider/notification_channel_resource.go
-internal/provider/provider.go

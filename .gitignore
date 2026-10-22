@@ -33,3 +33,6 @@ override.tf.json
 *~
 .vscode/
 .DS_Store
+terraform-provider-quismon-*
+tests.txt
+sources.txt
