@@ -23,6 +23,7 @@ Manages a Quismon health check.
 
 ### Optional
 
+- `alert_after_first_success` (Boolean, Deprecated) Deprecated alias of starts_broken. Either attribute sets the same stored flag.
 - `check_dependencies` (Set of String) List of check IDs that must be healthy before this check runs. If any dependency is unhealthy, this check is skipped with 'dependency_failed' status.
 - `config` (Map of String, Sensitive) Check-specific configuration (for simple types). Use config_json for complex nested configs like multistep. Password fields (smtp_password, imap_password, password) are sensitive and cannot be re-read from the API.
 - `config_json` (String, Sensitive) Check configuration as JSON string (required for multistep, smtp-imap, and other complex configs). Use jsonencode() to create this. Password fields are sensitive and cannot be re-read from the API.
@@ -34,6 +35,8 @@ Manages a Quismon health check.
 - `regions` (Set of String) Monitoring regions (set - order does not matter, duplicates not allowed).
 - `show_on_status_page` (Boolean) If true, this check contributes to the public status page. Default is false (opt-in).
 - `simultaneous_regions` (Boolean) If true, all regional checks execute simultaneously. If false (default), regional checks are staggered to avoid rate limiting.
+- `starts_broken` (Boolean) Starts-broken checks (TDD workflow): when true, the check does not alert (no incidents, no notifications) until it has succeeded at least once; an arrival notice is sent through the check's alert-rule channels on that first success. Create-only: once the check first succeeds, the platform silently graduates the check to a normal configuration (the stored flag clears) and this attribute is ignored on updates - remove it from your configuration after the first successful apply to keep plans clean.
+- `starts_broken_arrival_notice` (Boolean) When true (default), the first success of a starts-broken check sends the arrival notice through the check's alert-rule channels. Has no effect unless starts_broken is true.
 
 ### Read-Only
 
