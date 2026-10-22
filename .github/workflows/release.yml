@@ -30,7 +30,7 @@ jobs:
 
       - name: Generate Documentation
         run: |
-          go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+          go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.20.0
           tfplugindocs generate --provider-name quismon
 
       # NOTE: docs must be committed and pushed BEFORE tagging (tfplugindocs
