@@ -36,28 +36,30 @@ type checkResource struct {
 
 // checkResourceModel maps the resource schema data.
 type checkResourceModel struct {
-	ID                     types.String `tfsdk:"id"`
-	OrgID                  types.String `tfsdk:"org_id"`
-	Name                   types.String `tfsdk:"name"`
-	Type                   types.String `tfsdk:"type"`
-	Config                 types.Map    `tfsdk:"config"`
-	ConfigJSON             types.String `tfsdk:"config_json"`
-	ConfigHash             types.String `tfsdk:"config_hash"`
-	IntervalSeconds        types.Int64  `tfsdk:"interval_seconds"`
-	Regions                types.Set    `tfsdk:"regions"`
-	Enabled                types.Bool   `tfsdk:"enabled"`
-	Inverted               types.Bool   `tfsdk:"inverted"`
-	SimultaneousRegions    types.Bool   `tfsdk:"simultaneous_regions"`
-	RecheckOnFailure       types.Bool   `tfsdk:"recheck_on_failure"`
-	AlertAfterFirstSuccess types.Bool   `tfsdk:"alert_after_first_success"`
-	ShowOnStatusPage       types.Bool   `tfsdk:"show_on_status_page"`
-	ExpiresAfterSeconds    types.Int64  `tfsdk:"expires_after_seconds"`
-	DependsOn              types.Set    `tfsdk:"check_dependencies"`
-	IaCLocked              types.Bool   `tfsdk:"iac_locked"`
-	HealthStatus           types.String `tfsdk:"health_status"`
-	LastChecked            types.String `tfsdk:"last_checked"`
-	CreatedAt              types.String `tfsdk:"created_at"`
-	UpdatedAt              types.String `tfsdk:"updated_at"`
+	ID                        types.String `tfsdk:"id"`
+	OrgID                     types.String `tfsdk:"org_id"`
+	Name                      types.String `tfsdk:"name"`
+	Type                      types.String `tfsdk:"type"`
+	Config                    types.Map    `tfsdk:"config"`
+	ConfigJSON                types.String `tfsdk:"config_json"`
+	ConfigHash                types.String `tfsdk:"config_hash"`
+	IntervalSeconds           types.Int64  `tfsdk:"interval_seconds"`
+	Regions                   types.Set    `tfsdk:"regions"`
+	Enabled                   types.Bool   `tfsdk:"enabled"`
+	Inverted                  types.Bool   `tfsdk:"inverted"`
+	SimultaneousRegions       types.Bool   `tfsdk:"simultaneous_regions"`
+	RecheckOnFailure          types.Bool   `tfsdk:"recheck_on_failure"`
+	AlertAfterFirstSuccess    types.Bool   `tfsdk:"alert_after_first_success"`
+	StartsBroken              types.Bool   `tfsdk:"starts_broken"`
+	StartsBrokenArrivalNotice types.Bool   `tfsdk:"starts_broken_arrival_notice"`
+	ShowOnStatusPage          types.Bool   `tfsdk:"show_on_status_page"`
+	ExpiresAfterSeconds       types.Int64  `tfsdk:"expires_after_seconds"`
+	DependsOn                 types.Set    `tfsdk:"check_dependencies"`
+	IaCLocked                 types.Bool   `tfsdk:"iac_locked"`
+	HealthStatus              types.String `tfsdk:"health_status"`
+	LastChecked               types.String `tfsdk:"last_checked"`
+	CreatedAt                 types.String `tfsdk:"created_at"`
+	UpdatedAt                 types.String `tfsdk:"updated_at"`
 }
 
 // Metadata returns the resource type name.
@@ -140,10 +142,23 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Default:     booldefault.StaticBool(false),
 			},
 			"alert_after_first_success": schema.BoolAttribute{
-				Description: "Starts-broken checks (TDD workflow): when true, the check does not alert (no incidents, no notifications) until it has succeeded at least once; after the first success alerting arms permanently. Ideal when the check is created before the service it monitors exists.",
+				Description:        "Deprecated alias of starts_broken. Either attribute sets the same stored flag.",
+				Optional:           true,
+				Computed:           true,
+				Default:            booldefault.StaticBool(false),
+				DeprecationMessage: "Use starts_broken instead.",
+			},
+			"starts_broken": schema.BoolAttribute{
+				Description: "Starts-broken checks (TDD workflow): when true, the check does not alert (no incidents, no notifications) until it has succeeded at least once; an arrival notice is sent through the check's alert-rule channels on that first success. Create-only: once the check first succeeds, the platform silently graduates the check to a normal configuration (the stored flag clears) and this attribute is ignored on updates - remove it from your configuration after the first successful apply to keep plans clean.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
+			},
+			"starts_broken_arrival_notice": schema.BoolAttribute{
+				Description: "When true (default), the first success of a starts-broken check sends the arrival notice through the check's alert-rule channels. Has no effect unless starts_broken is true.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
 			},
 			"show_on_status_page": schema.BoolAttribute{
 				Description: "If true, this check contributes to the public status page. Default is false (opt-in).",
@@ -276,18 +291,19 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	// Create the check
 	createReq := client.CreateCheckRequest{
-		Name:                   plan.Name.ValueString(),
-		Type:                   plan.Type.ValueString(),
-		Config:                 configMap,
-		IntervalSeconds:        int(plan.IntervalSeconds.ValueInt64()),
-		Regions:                regions,
-		Enabled:                plan.Enabled.ValueBool(),
-		Inverted:               plan.Inverted.ValueBoolPointer(),
-		SimultaneousRegions:    plan.SimultaneousRegions.ValueBoolPointer(),
-		RecheckOnFailure:       plan.RecheckOnFailure.ValueBoolPointer(),
-		AlertAfterFirstSuccess: plan.AlertAfterFirstSuccess.ValueBoolPointer(),
-		ShowOnStatusPage:       plan.ShowOnStatusPage.ValueBoolPointer(),
-		DependsOn:              dependsOn,
+		Name:                      plan.Name.ValueString(),
+		Type:                      plan.Type.ValueString(),
+		Config:                    configMap,
+		IntervalSeconds:           int(plan.IntervalSeconds.ValueInt64()),
+		Regions:                   regions,
+		Enabled:                   plan.Enabled.ValueBool(),
+		Inverted:                  plan.Inverted.ValueBoolPointer(),
+		SimultaneousRegions:       plan.SimultaneousRegions.ValueBoolPointer(),
+		RecheckOnFailure:          plan.RecheckOnFailure.ValueBoolPointer(),
+		AlertAfterFirstSuccess:    mergeStartsBrokenAlias(plan.StartsBroken, plan.AlertAfterFirstSuccess),
+		StartsBrokenArrivalNotice: plan.StartsBrokenArrivalNotice.ValueBoolPointer(),
+		ShowOnStatusPage:          plan.ShowOnStatusPage.ValueBoolPointer(),
+		DependsOn:                 dependsOn,
 	}
 
 	// Only set expires_after_seconds if it's explicitly set (non-zero)
@@ -313,6 +329,8 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.AlertAfterFirstSuccess = types.BoolValue(check.AlertAfterFirstSuccess)
+	plan.StartsBroken = types.BoolValue(check.StartsBroken)
+	plan.StartsBrokenArrivalNotice = types.BoolValue(check.StartsBrokenArrivalNotice)
 	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	if len(check.DependsOn) > 0 {
 		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
@@ -383,6 +401,8 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	state.AlertAfterFirstSuccess = types.BoolValue(check.AlertAfterFirstSuccess)
+	state.StartsBroken = types.BoolValue(check.StartsBroken)
+	state.StartsBrokenArrivalNotice = types.BoolValue(check.StartsBrokenArrivalNotice)
 	state.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	if len(check.DependsOn) > 0 {
 		dependsOnSet, _ := types.SetValueFrom(ctx, types.StringType, check.DependsOn)
@@ -481,22 +501,25 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	inverted := plan.Inverted.ValueBool()
 	simultaneousRegions := plan.SimultaneousRegions.ValueBool()
 	recheckOnFailure := plan.RecheckOnFailure.ValueBool()
-	alertAfterFirstSuccess := plan.AlertAfterFirstSuccess.ValueBool()
 	showOnStatusPage := plan.ShowOnStatusPage.ValueBool()
 
 	updateReq := client.UpdateCheckRequest{
-		Name:                   &name,
-		Type:                   &checkType,
-		Config:                 &configMap,
-		IntervalSeconds:        &intervalSeconds,
-		Regions:                &regions,
-		Enabled:                &enabled,
-		Inverted:               &inverted,
-		SimultaneousRegions:    &simultaneousRegions,
-		RecheckOnFailure:       &recheckOnFailure,
-		AlertAfterFirstSuccess: &alertAfterFirstSuccess,
-		ShowOnStatusPage:       &showOnStatusPage,
-		DependsOn:              &dependsOn,
+		Name:                &name,
+		Type:                &checkType,
+		Config:              &configMap,
+		IntervalSeconds:     &intervalSeconds,
+		Regions:             &regions,
+		Enabled:             &enabled,
+		Inverted:            &inverted,
+		SimultaneousRegions: &simultaneousRegions,
+		RecheckOnFailure:    &recheckOnFailure,
+		// alert_after_first_success is intentionally NOT sent on update:
+		// it is create-only. The platform clears the stored flag after the
+		// check's first success (graduation to a normal check) - sending it
+		// on update would flip it back and fight the graduation
+		// (2026-10-22 starts-broken graduation).
+		ShowOnStatusPage: &showOnStatusPage,
+		DependsOn:        &dependsOn,
 		// Note: We deliberately do NOT set ExpiresAfterSeconds here.
 		// Expiring checks are typically temporary and managed via API,
 		// not Terraform. We don't want to tamper with them.
@@ -518,6 +541,8 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
 	plan.AlertAfterFirstSuccess = types.BoolValue(check.AlertAfterFirstSuccess)
+	plan.StartsBroken = types.BoolValue(check.StartsBroken)
+	plan.StartsBrokenArrivalNotice = types.BoolValue(check.StartsBrokenArrivalNotice)
 	plan.ShowOnStatusPage = types.BoolValue(check.ShowOnStatusPage)
 	// Only update DependsOn from API if the plan had a non-null value
 	// This prevents inconsistency when the API preserves old dependencies
