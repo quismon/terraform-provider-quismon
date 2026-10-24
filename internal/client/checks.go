@@ -22,6 +22,7 @@ type Check struct {
 	AlertAfterFirstSuccess    bool                   `json:"alert_after_first_success"`
 	StartsBroken              bool                   `json:"starts_broken"`
 	StartsBrokenArrivalNotice bool                   `json:"starts_broken_arrival_notice"`
+	StartsBrokenDeadlineAt    *string                `json:"starts_broken_deadline_at,omitempty"`
 	ShowOnStatusPage          bool                   `json:"show_on_status_page"`             // Contribute to public status page
 	ExpiresAfterSeconds       *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 	DependsOn                 []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs
@@ -45,6 +46,7 @@ type CreateCheckRequest struct {
 	AlertAfterFirstSuccess    *bool                  `json:"alert_after_first_success,omitempty"`
 	StartsBroken              *bool                  `json:"starts_broken,omitempty"`
 	StartsBrokenArrivalNotice *bool                  `json:"starts_broken_arrival_notice,omitempty"`
+	StartsBrokenDeadlineSeconds *int                 `json:"starts_broken_deadline_seconds,omitempty"`
 	ShowOnStatusPage          *bool                  `json:"show_on_status_page,omitempty"`   // Contribute to public status page
 	ExpiresAfterSeconds       *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
 	DependsOn                 []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs

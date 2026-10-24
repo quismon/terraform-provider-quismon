@@ -37,6 +37,7 @@ Manages a Quismon health check.
 - `simultaneous_regions` (Boolean) If true, all regional checks execute simultaneously. If false (default), regional checks are staggered to avoid rate limiting.
 - `starts_broken` (Boolean) Starts-broken checks (TDD workflow): when true, the check does not alert (no incidents, no notifications) until it has succeeded at least once; an arrival notice is sent through the check's alert-rule channels on that first success. Create-only: once the check first succeeds, the platform silently graduates the check to a normal configuration (the stored flag clears) and this attribute is ignored on updates - remove it from your configuration after the first successful apply to keep plans clean.
 - `starts_broken_arrival_notice` (Boolean) When true (default), the first success of a starts-broken check sends the arrival notice through the check's alert-rule channels. Has no effect unless starts_broken is true.
+- `starts_broken_deadline_seconds` (Number) Optional create-only "never came up" guard: if the check's first success hasn't happened within this many seconds of creation, starts-broken suppression lifts, a one-time deadline-breach escalation fires, and failure alerts flow. Only meaningful with starts_broken. Create-only.
 
 ### Read-Only
 

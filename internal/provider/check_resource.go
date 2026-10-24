@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -52,6 +53,7 @@ type checkResourceModel struct {
 	AlertAfterFirstSuccess    types.Bool   `tfsdk:"alert_after_first_success"`
 	StartsBroken              types.Bool   `tfsdk:"starts_broken"`
 	StartsBrokenArrivalNotice types.Bool   `tfsdk:"starts_broken_arrival_notice"`
+	StartsBrokenDeadline      types.Int64  `tfsdk:"starts_broken_deadline_seconds"`
 	ShowOnStatusPage          types.Bool   `tfsdk:"show_on_status_page"`
 	ExpiresAfterSeconds       types.Int64  `tfsdk:"expires_after_seconds"`
 	DependsOn                 types.Set    `tfsdk:"check_dependencies"`
@@ -159,6 +161,12 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+			},
+			"starts_broken_deadline_seconds": schema.Int64Attribute{
+				Description: "Optional create-only \"never came up\" guard: if the check's first success hasn't happened within this many seconds of creation, starts-broken suppression lifts, a one-time deadline-breach escalation fires, and failure alerts flow. Only meaningful with starts_broken. Create-only.",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(0),
 			},
 			"show_on_status_page": schema.BoolAttribute{
 				Description: "If true, this check contributes to the public status page. Default is false (opt-in).",
@@ -304,6 +312,12 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		StartsBrokenArrivalNotice: plan.StartsBrokenArrivalNotice.ValueBoolPointer(),
 		ShowOnStatusPage:          plan.ShowOnStatusPage.ValueBoolPointer(),
 		DependsOn:                 dependsOn,
+	}
+
+	// Only set starts_broken_deadline_seconds if it's explicitly set (non-zero)
+	if !plan.StartsBrokenDeadline.IsNull() && plan.StartsBrokenDeadline.ValueInt64() > 0 {
+		deadline := int(plan.StartsBrokenDeadline.ValueInt64())
+		createReq.StartsBrokenDeadlineSeconds = &deadline
 	}
 
 	// Only set expires_after_seconds if it's explicitly set (non-zero)
