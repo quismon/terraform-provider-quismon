@@ -1,6 +1,5 @@
 # Traceroute - per-hop latency (dashboard graphs hop_latencies), path hash,
-# completion and packet-loss thresholds. ICMP probes natively, with a
-# traceroute-binary fallback.
+# completion and packet-loss thresholds.
 resource "quismon_check" "route" {
   name             = "route-to-origin"
   type             = "traceroute"

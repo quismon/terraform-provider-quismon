@@ -80,9 +80,10 @@ Emits: `connected`, `resolved_ips`. `response_time_ms` = connect latency.
 | `nameservers` | array | system resolvers | IPv4/IPv6, optional port |
 | `timeout_seconds` | number | `10` | |
 
-Verifies DNSKEY **and DS** record presence plus a normal lookup of the
-requested type. Note: it validates *presence of signed-zone records*, not a
-full chain-of-trust validation.
+Verifies that DNSKEY and DS records are present for the zone, then performs
+a normal lookup of the requested type. Note: this confirms signed-zone
+records exist; it does not perform full cryptographic chain-of-trust
+validation.
 
 ### ssl
 
@@ -146,8 +147,8 @@ based on the HTTP response only — a server without HTTP/3 still passes.
 
 ### traceroute
 
-ICMP probes natively (per-hop latency data the dashboard graphs), with a
-`traceroute`-binary fallback.
+Per-hop latency data the dashboard graphs, with path-hash and
+packet-loss/completion thresholds.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -329,8 +330,7 @@ resource "quismon_check" "cert" {
 
 ```terraform
 # Traceroute - per-hop latency (dashboard graphs hop_latencies), path hash,
-# completion and packet-loss thresholds. ICMP probes natively, with a
-# traceroute-binary fallback.
+# completion and packet-loss thresholds.
 resource "quismon_check" "route" {
   name             = "route-to-origin"
   type             = "traceroute"
