@@ -34,22 +34,22 @@ type Check struct {
 
 // CreateCheckRequest represents a request to create a check
 type CreateCheckRequest struct {
-	Name                      string                 `json:"name"`
-	Type                      string                 `json:"type"`
-	Config                    map[string]interface{} `json:"config"`
-	IntervalSeconds           int                    `json:"interval_seconds"`
-	Regions                   []string               `json:"regions,omitempty"`
-	Enabled                   bool                   `json:"enabled"`
-	Inverted                  *bool                  `json:"inverted,omitempty"` // Alert on success instead of failure
-	SimultaneousRegions       *bool                  `json:"simultaneous_regions,omitempty"`
-	RecheckOnFailure          *bool                  `json:"recheck_on_failure,omitempty"`
-	AlertAfterFirstSuccess    *bool                  `json:"alert_after_first_success,omitempty"`
-	StartsBroken              *bool                  `json:"starts_broken,omitempty"`
-	StartsBrokenArrivalNotice *bool                  `json:"starts_broken_arrival_notice,omitempty"`
-	StartsBrokenDeadlineSeconds *int                 `json:"starts_broken_deadline_seconds,omitempty"`
-	ShowOnStatusPage          *bool                  `json:"show_on_status_page,omitempty"`   // Contribute to public status page
-	ExpiresAfterSeconds       *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
-	DependsOn                 []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs
+	Name                        string                 `json:"name"`
+	Type                        string                 `json:"type"`
+	Config                      map[string]interface{} `json:"config"`
+	IntervalSeconds             int                    `json:"interval_seconds"`
+	Regions                     []string               `json:"regions,omitempty"`
+	Enabled                     bool                   `json:"enabled"`
+	Inverted                    *bool                  `json:"inverted,omitempty"` // Alert on success instead of failure
+	SimultaneousRegions         *bool                  `json:"simultaneous_regions,omitempty"`
+	RecheckOnFailure            *bool                  `json:"recheck_on_failure,omitempty"`
+	AlertAfterFirstSuccess      *bool                  `json:"alert_after_first_success,omitempty"`
+	StartsBroken                *bool                  `json:"starts_broken,omitempty"`
+	StartsBrokenArrivalNotice   *bool                  `json:"starts_broken_arrival_notice,omitempty"`
+	StartsBrokenDeadlineSeconds *int                   `json:"starts_broken_deadline_seconds,omitempty"`
+	ShowOnStatusPage            *bool                  `json:"show_on_status_page,omitempty"`   // Contribute to public status page
+	ExpiresAfterSeconds         *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
+	DependsOn                   []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs
 }
 
 // UpdateCheckRequest represents a request to update a check
