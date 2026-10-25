@@ -28,6 +28,11 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
+      - name: TMI check (public docs leak scan)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/quismon/quismon/main/scripts/tmi_check.py -o /tmp/tmi_check.py
+          python3 /tmp/tmi_check.py "$GITHUB_WORKSPACE"
+
       - name: Set up Terraform (tfplugindocs uses PATH; hc-install downloads fail on expired keys)
         uses: hashicorp/setup-terraform@v3
         with:
