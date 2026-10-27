@@ -19,12 +19,12 @@ time instead of silently never applying). Required keys are marked ★.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `url` | string | — | Full URL; the scheme decides http vs https |
+| ★ `url` | string | - | Full URL; the scheme decides http vs https |
 | `method` | string | `GET` | |
-| `headers` | map | — | Custom `User-Agent` requires the **Adopter tier**+ |
-| `body` | string | — | For POST/PUT |
+| `headers` | map | - | Custom `User-Agent` requires the **Adopter tier**+ |
+| `body` | string | - | For POST/PUT |
 | `expected_status` | array / int / comma string | `[200]` | |
-| `expected_content` | string | — | With `content_match_type` |
+| `expected_content` | string | - | With `content_match_type` |
 | `content_match_type` | string | `contains` | `contains` \| `exact` \| `regex` \| `not_contains` |
 | `timeout_seconds` | number | `10` | |
 | `follow_redirects` | bool | `false` | |
@@ -37,7 +37,7 @@ headers (used by multistep header extraction), `body_preview`.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `host` | string | — | |
+| ★ `host` | string | - | |
 | `count` / `packet_count` | number | `3` | Aliases |
 | `timeout_seconds` | number | `5` | |
 
@@ -48,8 +48,8 @@ per-packet `rtt_ms`. Success = at least one reply.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `host` | string | — | |
-| ★ `port` | number | — | |
+| ★ `host` | string | - | |
+| ★ `port` | number | - | |
 | `timeout_seconds` | number | `5` | |
 
 Emits: `connected`, `resolved_ips`. `response_time_ms` = connect latency.
@@ -58,42 +58,43 @@ Emits: `connected`, `resolved_ips`. `response_time_ms` = connect latency.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `host`, ★ `port` | — | — | |
+| ★ `host`, ★ `port` | - | - | |
 | `payload` | string | `\n` | Hex-encoded or plain text |
-| `expected_response` | string | — | Substring or regex, matched against the response |
+| `expected_response` | string | - | Substring or regex, matched against the response |
 | `timeout_seconds` | number | `5` | |
 
 ### dns
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `domain` | string | — | |
+| ★ `domain` | string | - | |
 | ★ `record_type` | string | `A` | `A` \| `AAAA` \| `CNAME` \| `MX` \| `TXT` \| `NS` \| `SOA` |
-| `expected_records` | array | — | Substring match on rendered records |
+| `expected_records` | array | - | Substring match on rendered records |
 | `timeout_seconds` | number | `5` | |
 
 ### dnssec
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `domain` | string | — | |
+| ★ `domain` | string | - | |
 | `nameservers` | array | system resolvers | IPv4/IPv6, optional port |
 | `timeout_seconds` | number | `10` | |
 
-Verifies that DNSKEY and DS records are present for the zone, then performs
-a normal lookup of the requested type. Note: this confirms signed-zone
-records exist; it does not perform full cryptographic chain-of-trust
-validation.
+Performs full cryptographic chain-of-trust validation against the root
+trust anchor (DNSKEY + DS + RRSIG verification). A broken chain - bad
+signature, missing DS at the parent - fails the check with a descriptive
+error. `validate_chain` (default true) can be set to false for
+presence-only checking.
 
 ### ssl
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `hostname` | string | — | SNI + connect target |
+| ★ `hostname` | string | - | SNI + connect target |
 | `port` | number | `443` | |
 | `warning_days` | number | `30` | The check goes **unhealthy** when fewer days remain |
-| `expected_fingerprint` | string | — | SHA-256 cert pinning |
-| `expected_domains` | array | — | SAN pinning |
+| `expected_fingerprint` | string | - | SHA-256 cert pinning |
+| `expected_domains` | array | - | SAN pinning |
 
 Emits: `days_until_expiry` (also usable by the `ssl_days_remaining` alert
 condition), `not_after`, `fingerprint`, `san_domains`.
@@ -106,10 +107,10 @@ for it, and parses the `Authentication-Results` header. Requires
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `smtp_host`, ★ `smtp_port` | — | — | |
-| ★ `imap_host`, ★ `imap_port` | — | — | |
-| ★ `from_address`, ★ `to_address` | — | — | |
-| `smtp_username` / `smtp_password` | string | — | Sensitive |
+| ★ `smtp_host`, ★ `smtp_port` | - | - | |
+| ★ `imap_host`, ★ `imap_port` | - | - | |
+| ★ `from_address`, ★ `to_address` | - | - | |
+| `smtp_username` / `smtp_password` | string | - | Sensitive |
 | `smtp_tls_mode` | string | auto by port | `auto` \| `starttls` \| `tls` \| `none` (465 TLS, 587 STARTTLS, 25 plain) |
 | `imap_username` / `imap_password` | string | SMTP creds | Sensitive |
 | `imap_tls_mode` | string | auto | |
@@ -127,7 +128,7 @@ Emits: `spf_result`, `dkim_result`, `dmarc_result`, `smtp_tls_mode`,
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `url` | string | — | |
+| ★ `url` | string | - | |
 | `max_size_mb` | number | `5` | Tier-capped: 5 free/cafe, 25 adopter, 100 pro, 250 advanced, 500 enterprise |
 | `timeout_seconds` | number | `30` | |
 
@@ -137,13 +138,13 @@ Emits: `throughput_mbps`, `bytes_downloaded`, `time_seconds`.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `url` | string | — | |
-| `expected_status` | — | `[200]` | |
+| ★ `url` | string | - | |
+| `expected_status` | - | `[200]` | |
 | `timeout_seconds` | number | `10` | |
 
 Detects HTTP/3 support via `Alt-Svc`/`h3` (`supports_http3`,
 `http3_available` metadata) and validates the HTTP response. Note: success is
-based on the HTTP response only — a server without HTTP/3 still passes.
+based on the HTTP response only - a server without HTTP/3 still passes.
 
 ### traceroute
 
@@ -152,12 +153,12 @@ packet-loss/completion thresholds.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| ★ `host` | string | — | |
+| ★ `host` | string | - | |
 | `max_hops` | number | `30` | |
 | `probes_per_hop` | number | `3` | |
 | `timeout_seconds` | number | `5` | Per probe |
 
-Emits: `hop_latencies` (per-hop RTT arrays — rendered as graphs),
+Emits: `hop_latencies` (per-hop RTT arrays - rendered as graphs),
 `traceroute_path`, `path_hash`, `total_hops`, `successful_hops`,
 `timeout_hops`, `completed`, `avg_hop_rtt_ms`, `final_hop_rtt_ms`.
 
@@ -188,15 +189,15 @@ multi-region.
 
 Any check type combines with:
 
-- **`inverted = true`** — alert when the *bad* state exists (open firewalls,
+- **`inverted = true`** - alert when the *bad* state exists (open firewalls,
   public admin panels, resurrected servers)
 - **`starts_broken = true`** (+ `starts_broken_arrival_notice`,
-  `starts_broken_deadline_seconds`) — create the check before the fix exists;
+  `starts_broken_deadline_seconds`) - create the check before the fix exists;
   silent until the first success, arrival notice, graduation into permanent
   enforcement, one-time escalation if the deadline passes
-- **`expires_after_seconds`** — temporary checks that auto-delete (CI/CD,
+- **`expires_after_seconds`** - temporary checks that auto-delete (CI/CD,
   migrations, incident windows)
-- **`check_dependencies`** — run only when the named checks are healthy
+- **`check_dependencies`** - run only when the named checks are healthy
 
 ## Example Usage
 

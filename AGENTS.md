@@ -199,6 +199,27 @@ resource "quismon_notification_channel" "slack" {
 }
 ```
 
+### quismon_status_page
+
+**File:** `internal/provider/status_page_resource.go`
+
+Singleton per org (one status page each). `slug` is immutable (RequiresReplace). `access_token`/`access_password` are write-only (API stores hashes, never returns them). The status-pages API returns `{"status_page": ...}` WITHOUT the `{"data": ...}` envelope - do not use `client.UnmarshalAPIResponse` for it.
+
+```hcl
+resource "quismon_status_page" "demo" {
+  slug        = "demo-org"
+  title       = "Demo Org"
+  theme       = "dark"
+  primary_color = "#8b5cf6"
+  show_response_times    = true
+  show_uptime_percentage = true
+  show_incident_history  = true
+  incident_history_days  = 30
+  show_all_checks        = false
+  visible_check_ids = [quismon_check.website.id]
+}
+```
+
 ### quismon_alert_rule
 
 **File:** `internal/provider/alert_rule_resource.go`
