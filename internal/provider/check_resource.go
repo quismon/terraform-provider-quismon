@@ -429,14 +429,28 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	} else {
 		state.ExpiresAfterSeconds = types.Int64Null()
 	}
-	state.HealthStatus = types.StringValue(check.HealthStatus)
-	if check.LastChecked != nil {
-		state.LastChecked = types.StringValue(*check.LastChecked)
-	} else {
-		state.LastChecked = types.StringNull()
+
+	// Regions are non-sensitive and must be tracked for drift detection
+	if len(check.Regions) > 0 {
+		regionsSet, _ := types.SetValueFrom(ctx, types.StringType, check.Regions)
+		state.Regions = regionsSet
 	}
-	state.CreatedAt = types.StringValue(check.CreatedAt)
-	state.UpdatedAt = types.StringValue(check.UpdatedAt)
+
+	// Volatile telemetry (health_status, last_checked, updated_at, created_at)
+	// changes on every check run - only populate when absent (import), never
+	// overwrite on refresh, otherwise every plan shows perpetual drift.
+	if state.HealthStatus.IsNull() {
+		state.HealthStatus = types.StringValue(check.HealthStatus)
+	}
+	if state.LastChecked.IsNull() && check.LastChecked != nil {
+		state.LastChecked = types.StringValue(*check.LastChecked)
+	}
+	if state.UpdatedAt.IsNull() {
+		state.UpdatedAt = types.StringValue(check.UpdatedAt)
+	}
+	if state.CreatedAt.IsNull() {
+		state.CreatedAt = types.StringValue(check.CreatedAt)
+	}
 
 	// Note: We intentionally do NOT update state.Config or state.ConfigJSON from the API
 	// because sensitive fields (passwords) are returned as ***REDACTED***.

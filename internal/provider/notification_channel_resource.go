@@ -160,8 +160,12 @@ func (r *notificationChannelResource) Read(ctx context.Context, req resource.Rea
 	state.Name = types.StringValue(channel.Name)
 	state.Type = types.StringValue(channel.Type)
 	state.Enabled = types.BoolValue(channel.Enabled)
-	state.CreatedAt = types.StringValue(channel.CreatedAt)
-	state.UpdatedAt = types.StringValue(channel.UpdatedAt)
+	if state.CreatedAt.IsNull() {
+		state.CreatedAt = types.StringValue(channel.CreatedAt)
+	}
+	if state.UpdatedAt.IsNull() {
+		state.UpdatedAt = types.StringValue(channel.UpdatedAt)
+	}
 
 	// Convert config map to Terraform Map type
 	if channel.Config != nil {
