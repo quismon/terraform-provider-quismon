@@ -172,5 +172,6 @@ func (p *quismonProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewNotificationChannelResource,
 		NewSignupResource,
 		NewOrganizationOTLPResource,
+		NewStatusPageResource,
 	}
 }
