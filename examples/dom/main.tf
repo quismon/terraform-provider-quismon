@@ -89,3 +89,68 @@ resource "quismon_check" "build_deployment" {
     ]
   })
 }
+
+# Mixed multistep: dom extraction feeds an HTTP POST, the response token
+# rides a Bearer header, and both vars land in a final dom assertion.
+# (Validated live against firingrange.quismon.com - see internal-docs.)
+resource "quismon_check" "dom_mixed_flow" {
+  name             = "Journey - Dom Extract Feeds POST Auth Chain"
+  type             = "multistep"
+  interval_seconds = 300
+  regions          = ["na-east-ewr", "eu-west-ams"]
+
+  config_json = jsonencode({
+    timeout_seconds = 120
+    steps = [
+      # 1. Pull a value OUT of a rendered page (CSRF-token pattern)
+      {
+        name   = "dom: extract page title"
+        type   = "dom"
+        config = { url = "https://example.com/", timeout_seconds = 20 }
+        extracts = { site_title = { selector = "title", attribute = "text" } }
+      },
+      # 2. POST: the extracted var rides the JSON body (interpolation is
+      #    generic - any string field of any step config)
+      {
+        name   = "http: POST login (body uses {{site_title}})"
+        type   = "http"
+        config = {
+          url             = "https://firingrange.quismon.com/auth/login"
+          method          = "POST"
+          headers         = { "Content-Type" = "application/json" }
+          body            = "{\"username\": \"{{site_title}}\", \"password\": \"ci-password\"}"
+          expected_status = 200
+          timeout_seconds = 15
+        }
+        extracts = {
+          token  = { jsonpath = "$.access_token" }
+          whoami = { jsonpath = "$.user.username" }
+        }
+      },
+      # 3. The extracted token rides an Authorization header
+      {
+        name   = "http: Bearer GET protected"
+        type   = "http"
+        config = {
+          url             = "https://firingrange.quismon.com/auth/protected"
+          headers         = { "Authorization" = "Bearer {{token}}" }
+          expected_status = 200
+          timeout_seconds = 15
+        }
+        extracts = { grant = { jsonpath = "$.message" } }
+      },
+      # 4. Dom assertion with the chain's state injected into the JS
+      #    (dom steps cannot set request headers - use query params or the
+      #    scripted dom check's page.fill flow for header-auth journeys)
+      {
+        name   = "dom: assert chain state"
+        type   = "dom"
+        config = {
+          url           = "https://example.com/"
+          timeout_seconds = 20
+          expected_js   = "document.readyState === 'complete' && '{{token}}'.startsWith('bearer-') && '{{whoami}}'.length > 0"
+        }
+      }
+    ]
+  })
+}
