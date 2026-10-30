@@ -30,8 +30,11 @@ jobs:
 
       - name: TMI check (public docs leak scan)
         run: |
-          curl -sfL https://raw.githubusercontent.com/quismon/quismon/main/scripts/tmi_check.py -o /tmp/tmi_check.py
-          python3 /tmp/tmi_check.py "$GITHUB_WORKSPACE"
+          # Vendored copy of the monorepo's scripts/tmi_check.py - the monorepo
+          # is PRIVATE and raw.githubusercontent 404s unauthenticated fetches,
+          # which broke the v1.4.0 release (2026-10-30). Keep in sync with
+          # the monorepo when the scan rules change.
+          python3 scripts/tmi_check.py "$GITHUB_WORKSPACE"
 
       - name: Set up Terraform (tfplugindocs uses PATH; hc-install downloads fail on expired keys)
         uses: hashicorp/setup-terraform@v3
