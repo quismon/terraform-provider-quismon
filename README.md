@@ -794,7 +794,7 @@ resource "quismon_check" "ssl_cert_san" {
 Monitor network paths and detect routing changes:
 
 ```hcl
-resource "quismon_check" "traceroute" {
+resource "quismon_check" "traceroute, dom" {
   name             = "Network Path to API"
   type             = "traceroute"
   interval_seconds = 300

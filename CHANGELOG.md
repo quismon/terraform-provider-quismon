@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`dom` check type**: browser-lite rendering checks via lightpanda.
+  Declarative assertions (`url`, `expected_status_code`, `expected_selector`,
+  `expected_text`, `expected_js`, `timeout_seconds`) at the Adopter tier;
+  scripted PandaScript variant (`script` + `secrets` — interactions,
+  screenshots, credential injection via `$LP_*`) at the Pro tier.
+  Plan-time validation: `url`-or-`script`, 16KB script cap.
+- `examples/dom/`: declarative, authenticated journey with secrets
+  (`config_json`), and multistep-into-dom examples.
+
 ## [1.1.2] - 2026-10-08
 
 ### Added

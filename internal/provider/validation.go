@@ -284,3 +284,35 @@ func validatePlaywrightConfigJSON(configJSON string, checkType string) error {
 
 	return validatePlaywrightConfig(configMap)
 }
+
+// validateDomConfig validates dom check config at plan time.
+// A dom check needs either a url (declarative) or a script (PandaScript);
+// the script is size-capped and must not exceed the 16KB API limit.
+func validateDomConfig(configMap map[string]interface{}) error {
+	url, hasURL := configMap["url"]
+	script, hasScript := configMap["script"]
+	if !hasURL && !hasScript {
+		return fmt.Errorf("dom check requires either 'url' (declarative assertions) or 'script' (PandaScript)")
+	}
+	if hasScript {
+		sc, ok := script.(string)
+		if !ok {
+			return fmt.Errorf("dom 'script' must be a string (PandaScript source)")
+		}
+		if sc == "" {
+			return fmt.Errorf("dom 'script' must not be empty")
+		}
+		if len(sc) > 16*1024 {
+			return fmt.Errorf("dom 'script' exceeds the 16KB limit (%d bytes)", len(sc))
+		}
+	}
+	if hasURL {
+		u, ok := url.(string)
+		if !ok || u == "" {
+			if !hasScript {
+				return fmt.Errorf("dom 'url' must be a non-empty string when 'script' is absent")
+			}
+		}
+	}
+	return nil
+}

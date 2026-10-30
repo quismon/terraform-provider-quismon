@@ -90,7 +90,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
@@ -273,6 +273,17 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		if err := validatePlaywrightConfig(configMap); err != nil {
 			resp.Diagnostics.AddError(
 				"Invalid Playwright Configuration",
+				err.Error(),
+			)
+			return
+		}
+	}
+
+	// Validate dom configuration at plan time (script size + script/url presence)
+	if plan.Type.ValueString() == "dom" {
+		if err := validateDomConfig(configMap); err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid Dom Configuration",
 				err.Error(),
 			)
 			return
@@ -497,6 +508,17 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		if err := validatePlaywrightConfig(configMap); err != nil {
 			resp.Diagnostics.AddError(
 				"Invalid Playwright Configuration",
+				err.Error(),
+			)
+			return
+		}
+	}
+
+	// Validate dom configuration at plan time (if config is being updated)
+	if plan.Type.ValueString() == "dom" && len(configMap) > 0 {
+		if err := validateDomConfig(configMap); err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid Dom Configuration",
 				err.Error(),
 			)
 			return
