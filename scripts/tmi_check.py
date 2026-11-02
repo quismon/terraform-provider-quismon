@@ -37,11 +37,12 @@ if (REPO / "website").exists():
         "docs",
         "terraform-provider-quismon/templates",
         "terraform-provider-quismon/docs",
+        "terraform-provider-quismon/examples",
         "infrastructure/status-page",
     ]
 else:
     PUBLIC_FILES = ["README.md"]
-    PUBLIC_DIRS = ["templates", "docs"]
+    PUBLIC_DIRS = ["templates", "docs", "examples"]
 
 # (name, pattern, allow_everywhere_in) - allow_everywhere_in limits a pattern
 # to specific files where the mention is a deliberate public statement.
@@ -69,7 +70,7 @@ PATTERNS = [
     # TODO markers in published docs
     ("todo-markers", r"\bTODO\b|\bFIXME\b|\bXXX\b", []),  # XXX matched case-sensitively below
     # Internal doc references / hosts
-    ("internal-references", r"internal-docs/|prod-01|quismon-prod|\.secrets/", []),
+    ("internal-references", r"internal-docs\b|prod-01|quismon-prod|\.secrets/", []),
     # Infrastructure file names
     ("infra-files", r"docker-compose|Caddyfile|bootstrap-playwright|systemd", []),
 ]
@@ -101,7 +102,7 @@ def public_files():
         if not base.exists():
             continue
         for p in base.rglob("*"):
-            if p.suffix in {".html", ".md", ".yaml", ".yml", ".tmpl"}:
+            if p.suffix in {".html", ".md", ".yaml", ".yml", ".tmpl", ".tf", ".hcl"}:
                 files.append(p)
     return sorted(set(files))
 
@@ -131,6 +132,8 @@ def main() -> int:
                  "backed by a durable Redis Stream"),
                 ("openapi.yaml", "queue-mechanics",
                  "Redis stream entry ID to resume from"),
+                # Provider examples use the standard Slack placeholder shape.
+                ("examples/", "todo-markers", "hooks.slack.com/services/XXX"),
             ]
             for name, pattern, _ in PATTERNS:
                 flags = 0 if name == "todo-markers" and "\\bXXX\\b" in pattern else re.IGNORECASE

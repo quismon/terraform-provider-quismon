@@ -92,7 +92,6 @@ resource "quismon_check" "build_deployment" {
 
 # Mixed multistep: dom extraction feeds an HTTP POST, the response token
 # rides a Bearer header, and both vars land in a final dom assertion.
-# (Validated live against firingrange.quismon.com - see internal-docs.)
 resource "quismon_check" "dom_mixed_flow" {
   name             = "Journey - Dom Extract Feeds POST Auth Chain"
   type             = "multistep"

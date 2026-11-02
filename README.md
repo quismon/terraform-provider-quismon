@@ -286,7 +286,7 @@ The export enables a smooth transition from manual/dashboard management to Infra
 3. **Iterate** - Make changes through Terraform, not the dashboard
 4. **Collaborate** - Use pull requests for monitoring changes
 
-See the VIBECODING-TO-IAC guide (`../internal-docs/VIBECODING-TO-IAC.md` in the monorepo checkout) for a complete guide.
+See [From Vibecoding to IaC](https://docs.quismon.com/guide/vibecoding) for the console-to-Terraform workflow.
 
 ## Check Types
 

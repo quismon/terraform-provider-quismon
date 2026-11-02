@@ -51,7 +51,7 @@ resource "quismon_notification_channel" "ntfy" {
   type = "ntfy"
 
   config = {
-    topic  = "quismon-prod-alerts"
+    topic  = "quismon-alerts"
     server = "https://ntfy.sh"
   }
 
