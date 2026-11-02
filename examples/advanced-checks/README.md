@@ -60,3 +60,27 @@ terraform apply
 | Name | Version |
 |------|---------|
 | quismon | ~> 1.0 |
+
+---
+
+## EGM Contract
+
+### Interface (main.tf)
+
+- `quismon_check.throughput` — throughput check via `config_json` (10MB Cloudflare speed file, `max_size_mb = 5`, 2 regions, 300s interval)
+- `quismon_check.http3` / `quismon_check.http3_with_content` — HTTP/3 checks with `expected_status` arrays and `expected_content` + `content_match_type = "contains"`
+- `quismon_check.bandwidth_benchmark` — 1MB OVH test file, 3 regions, 600s interval
+- Outputs: `throughput_check_id`, `http3_check_id`
+
+### Invariants
+
+- All configs use `config_json = jsonencode({...})` (numeric/array values) (`main.tf`)
+- `max_size_mb` is tier-limited (comment: Free 5MB / Paid 100MB / Enterprise 500MB) (`main.tf`)
+
+### Side Effects
+
+- Applying creates checks that repeatedly download test files (bandwidth consumption on both ends)
+
+### Verification
+
+- No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`

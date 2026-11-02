@@ -397,7 +397,7 @@ resource "quismon_check" "http3_workflow" {
 resource "quismon_notification_channel" "ops_email" {
   name   = "Ops Team Email"
   type   = "email"
-  config = { to = jsonencode(["ops@example.com"]) }
+  config = { email = "ops@example.com" }
   enabled = true
 }
 

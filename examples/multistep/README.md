@@ -86,5 +86,30 @@ terraform apply
 
 Maximum steps per multi-step check:
 - **Free tier**: 5 steps
-- **Paid tier**: 10 steps
+- **Paid tier**: 20 steps
 - **Enterprise**: 20 steps
+
+---
+
+## EGM Contract
+
+### Interface (main.tf)
+
+- `quismon_notification_channel.ops_team` (email)
+- Checks (all `type = "multistep"`, `config_json`): `api_login_flow` (login → extract `auth_token` via `$.token` → Bearer profile GET), `checkout_flow` (product → extract `product_price` → cart POST with `{{product_price}}` → verify), `api_health_chain` (3 endpoints, `fail_fast = false`)
+- `quismon_alert_rule.api_flow_down` (`failure_threshold = 2`)
+- Outputs: `login_flow_check_id`, `checkout_flow_check_id`
+
+### Invariants
+
+- Per-step `timeout_seconds` (max time per step) vs top-level `timeout_seconds` (total budget) are distinct fields (`main.tf` comments)
+- `fail_fast = false` continues past failures to report all endpoint results (`main.tf` Example 3)
+- Login body embeds placeholder credentials (`monitoring@example.com` / `secret`) — replace before real use (`main.tf` Example 1)
+
+### Side Effects
+
+- Applying creates checks that POST logins and cart operations against example.com endpoints every 5–10 minutes
+
+### Verification
+
+- No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`

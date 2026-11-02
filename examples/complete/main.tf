@@ -29,7 +29,7 @@ resource "quismon_notification_channel" "ops_email" {
   type = "email"
 
   config = {
-    to = jsonencode(["ops@example.com", "oncall@example.com"])
+    email = "ops@example.com"
   }
 
   enabled = true
@@ -65,14 +65,14 @@ resource "quismon_check" "api" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1", "eu-west-1"]
+  regions = ["na-east-ewr", "eu-west-ams"]
 
   config = {
     url                  = "https://api.example.com/health"
     method               = "GET"
     expected_status_code = "200"
     timeout_seconds      = "10"
-    headers              = jsonencode({
+    headers = jsonencode({
       "User-Agent" = "Quismon-Monitor/1.0"
     })
   }
@@ -119,7 +119,7 @@ resource "quismon_check" "database" {
   interval_seconds = 120
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     host            = "db.example.com"
@@ -151,7 +151,7 @@ resource "quismon_check" "gateway" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     host            = "192.168.1.1"
@@ -189,7 +189,7 @@ resource "quismon_alert_rule" "cert_expiring_soon" {
     severity           = "warning"
   }
 
-  notification_channel_ids = [quismon_notification_channel.email.id]
+  notification_channel_ids = [quismon_notification_channel.ops_email.id]
 
   notify_on = "unhealthy"
 }

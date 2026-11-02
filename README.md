@@ -4,7 +4,7 @@ The Quismon Terraform provider allows you to manage your monitoring infrastructu
 
 ## Features
 
-- **Checks**: Create and manage HTTP/HTTPS, TCP, Ping, DNS, DNSSEC, SSL, HTTP/3, Throughput, SMTP/IMAP, Traceroute, and Multi-step health checks
+- **Checks**: Create and manage HTTP/HTTPS, TCP, UDP, Ping, DNS, DNSSEC, SSL, HTTP/3, Throughput, SMTP/IMAP, Traceroute, DOM, Playwright, and Multi-step health checks
 - **Alert Rules**: Configure alert conditions using flexible condition maps
 - **Notification Channels**: Set up email, ntfy, webhook, and Slack notifications
 - **Custom Templates**: Use template variables for personalized alert messages
@@ -90,7 +90,7 @@ resource "quismon_check" "website" {
     expected_status = "200"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 output "api_key" {
@@ -187,7 +187,7 @@ resource "quismon_check" "production_api" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1", "eu-west-1"]
+  regions = ["na-east-ewr", "eu-west-ams"]
 
   config = {
     url                  = "https://api.example.com/health"
@@ -255,8 +255,8 @@ curl -H "Authorization: Bearer $QUISMON_API_KEY" \
 
 # 2. Create a variables file
 cat > terraform.tfvars << EOF
-base_url = "https://api.quismon.com"
-api_key  = "YOUR_API_KEY"
+quismon_base_url = "https://api.quismon.com"
+quismon_api_key  = "YOUR_API_KEY"
 EOF
 
 # 3. Initialize and import
@@ -286,7 +286,7 @@ The export enables a smooth transition from manual/dashboard management to Infra
 3. **Iterate** - Make changes through Terraform, not the dashboard
 4. **Collaborate** - Use pull requests for monitoring changes
 
-See [docs/VIBECODING-TO-IAC.md](../docs/VIBECODING-TO-IAC.md) for a complete guide.
+See the VIBECODING-TO-IAC guide (`../internal-docs/VIBECODING-TO-IAC.md` in the monorepo checkout) for a complete guide.
 
 ## Check Types
 
@@ -299,7 +299,7 @@ resource "quismon_check" "web_app" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1", "eu-west-1", "ap-southeast-1"]
+  regions = ["na-east-ewr", "eu-west-ams", "ap-southeast-sin"]
 
   config = {
     url                  = "https://www.example.com"
@@ -332,7 +332,7 @@ resource "quismon_check" "api_health" {
     content_match_type   = "contains"             # contains, exact, regex, or not_contains
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # Regex validation example
@@ -347,7 +347,7 @@ resource "quismon_check" "api_version" {
     content_match_type = "regex"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # Inverted check - alert if private endpoint becomes public
@@ -363,7 +363,7 @@ resource "quismon_check" "private_endpoint_exposure" {
     content_match_type = "not_contains"  # Fail if content IS found
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -420,7 +420,7 @@ resource "quismon_check" "login_flow" {
     timeout_seconds  = 30
   })
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -438,7 +438,7 @@ resource "quismon_check" "redis_server" {
     timeout_seconds = "5"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -479,7 +479,7 @@ resource "quismon_check" "dns_server" {
     packet_count    = "4"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -497,7 +497,7 @@ resource "quismon_check" "dns_a_record" {
     expected_ips = jsonencode(["93.184.216.34"])
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # DNS MX Record Check
@@ -511,11 +511,11 @@ resource "quismon_check" "dns_mx_record" {
     record_type = "MX"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # DNS TXT Record Check
-resource "quismon_check" "dns_spf" {
+resource "quismon_check" "dns_txt" {
   name             = "SPF Record"
   type             = "dns"
   interval_seconds = 3600
@@ -525,7 +525,7 @@ resource "quismon_check" "dns_spf" {
     record_type = "TXT"
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # DNS Check with Custom Nameservers
@@ -541,7 +541,7 @@ resource "quismon_check" "dns_google_dns" {
     nameservers  = ["8.8.8.8", "8.8.4.4"]
   })
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # DNS Check using Cloudflare DNS
@@ -556,7 +556,7 @@ resource "quismon_check" "dns_cloudflare" {
     nameservers  = ["1.1.1.1"]
   })
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -730,7 +730,7 @@ resource "quismon_check" "email_auth" {
 1. Sends a test email via SMTP
 2. Waits for email to arrive in IMAP inbox
 3. Fetches email headers and parses `Authentication-Results` header
-4. Reports SPF/DKIM/DMARC status in check metadata (`spf_result`, `dkim_result`, `dmarc_result`)
+4. Reports SPF/DKIM/DMARC status in check metadata
 5. If `require_*_pass` options are set, fails the check if authentication doesn't pass
 
 **Note**: This validates real email authentication in actual mail flow, not just DNS records. The receiving mail server must add `Authentication-Results` headers for this to work.
@@ -744,12 +744,12 @@ resource "quismon_check" "ssl_cert" {
   interval_seconds = 3600  # Check every hour
 
   config = {
-    domain              = "api.example.com"
-    port                = 443
-    warn_days_remaining = 30
+    hostname      = "api.example.com"
+    port          = 443
+    warning_days  = 30
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # SSL Certificate with Fingerprint Validation
@@ -759,13 +759,13 @@ resource "quismon_check" "ssl_cert_fingerprint" {
   interval_seconds = 3600
 
   config = {
-    domain                    = "critical.example.com"
-    port                      = 443
-    warn_days_remaining       = 30
-    expected_fingerprint_sha256 = "abc123def456..."  # SHA-256 fingerprint
+    hostname             = "critical.example.com"
+    port                 = 443
+    warning_days         = 30
+    expected_fingerprint = "abc123def456..."  # SHA-256 fingerprint
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 
 # SSL Certificate with SAN Domain Validation
@@ -775,17 +775,17 @@ resource "quismon_check" "ssl_cert_san" {
   interval_seconds = 3600
 
   config = {
-    domain              = "secure.example.com"
-    port                = 443
-    warn_days_remaining = 30
-    expected_domains    = jsonencode([
+    hostname          = "secure.example.com"
+    port              = 443
+    warning_days      = 30
+    expected_domains  = jsonencode([
       "secure.example.com",
       "www.secure.example.com",
       "api.secure.example.com"
     ])
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -794,7 +794,7 @@ resource "quismon_check" "ssl_cert_san" {
 Monitor network paths and detect routing changes:
 
 ```hcl
-resource "quismon_check" "traceroute, dom" {
+resource "quismon_check" "traceroute" {
   name             = "Network Path to API"
   type             = "traceroute"
   interval_seconds = 300
@@ -815,84 +815,35 @@ resource "quismon_check" "traceroute, dom" {
 
 ### Email Security Checks
 
-Monitor SPF, DKIM, and DMARC records for email authentication:
-
-#### SPF Check
+SPF, DKIM, and DMARC validation is part of the `smtp-imap` check type — there are no separate `spf`, `dkim`, or `dmarc` check types. Send a real message through your mail pipeline and fail the check if any authentication result does not pass:
 
 ```hcl
-resource "quismon_check" "spf" {
-  name             = "SPF Record Validation"
-  type             = "spf"
-  interval_seconds = 3600
+resource "quismon_check" "email_pipeline" {
+  name             = "Email pipeline"
+  type             = "smtp-imap"
+  interval_seconds = 300
 
   config_json = jsonencode({
-    domain           = "example.com"
-    expected_includes = ["_spf.google.com", "sendgrid.net"]
-    # Warns if using soft fail (~all) instead of hard fail (-all)
+    smtp_host = "smtp.example.com"
+    smtp_port = 587
+    imap_host = "imap.example.com"
+    imap_port = 993
+
+    from_address = "monitoring@example.com"
+    to_address   = "inbox@example.com"
+
+    # Fail the check unless SPF, DKIM, and DMARC all pass
+    require_spf_pass   = true
+    require_dkim_pass  = true
+    require_dmarc_pass = true
   })
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
   enabled = true
 }
 ```
 
-**SPF validates**:
-- Record exists with `v=spf1` version
-- Expected IP addresses are included
-- Expected include domains are present
-- Uses hard fail (`-all`) vs soft fail (`~all`)
-
-#### DKIM Check
-
-```hcl
-resource "quismon_check" "dkim" {
-  name             = "DKIM Key Validation"
-  type             = "dkim"
-  interval_seconds = 3600
-
-  config_json = jsonencode({
-    domain         = "example.com"
-    selector       = "default"  # Or "google", "mail", etc.
-    min_key_length = 2048       # Warn if key is too weak
-    # Optional: expected_key_hash to detect key changes
-  })
-
-  regions = ["us-east-1"]
-  enabled = true
-}
-```
-
-**DKIM validates**:
-- Record exists at `{selector}._domainkey.{domain}`
-- Public key is present and valid
-- Key length meets minimum requirement
-- Key fingerprint for change detection
-
-#### DMARC Check
-
-```hcl
-resource "quismon_check" "dmarc" {
-  name             = "DMARC Policy Validation"
-  type             = "dmarc"
-  interval_seconds = 3600
-
-  config_json = jsonencode({
-    domain                = "example.com"
-    expected_policy       = "reject"  # none, quarantine, or reject
-    expected_pct          = 100       # Percentage of emails to apply policy
-    require_aggregate_reports = true  # Require rua (aggregate report endpoint)
-  })
-
-  regions = ["us-east-1"]
-  enabled = true
-}
-```
-
-**DMARC validates**:
-- Record exists at `_dmarc.{domain}`
-- Policy matches expected (none/quarantine/reject)
-- Percentage (pct) matches expected
-- Aggregate report endpoint (rua) is configured
+**Note**: This validates real email authentication in actual mail flow (by parsing the `Authentication-Results` header of the received message), not just DNS records. To inspect the records themselves (SPF/TXT, DKIM, DMARC), use a `dns` check with `record_type = "TXT"` against the relevant record name.
 
 ## Inverted Checks (Security Monitoring)
 
@@ -915,7 +866,7 @@ resource "quismon_check" "db_not_public" {
     invert          = "true"  # Fail if connection succeeds
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
@@ -933,17 +884,17 @@ resource "quismon_check" "admin_not_public" {
     expected_status = "401,403,404"  # Any auth error or not found is good
   }
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 }
 ```
 
 ## Monitoring Regions
 
-Quismon monitors from 31 regions across 6 continents via Vultr:
+Quismon monitors from 33 regions across 6 continents via Vultr:
 
-**North America:** `na-east-ewr` (NYC), `na-west-sjc` (San Jose), `na-west-lax` (LA), `na-west-sea` (Seattle), `na-central-dfw` (Dallas), `na-central-ord` (Chicago), `na-east-mia` (Miami), `na-east-atl` (Atlanta), `na-east-yto` (Toronto), `na-central-mex` (Mexico City)
+**North America:** `na-east-ewr` (NYC), `na-west-sjc` (San Jose), `na-west-lax` (LA), `na-west-sea` (Seattle), `na-central-dfw` (Dallas), `na-central-ord` (Chicago), `na-east-mia` (Miami), `na-east-atl` (Atlanta), `na-east-yto` (Toronto), `na-central-mex` (Mexico City), `na-west-hnl` (Honolulu)
 
-**Europe:** `eu-west-ams` (Amsterdam), `eu-west-lhr` (London), `eu-west-man` (Manchester), `eu-central-fra` (Frankfurt), `eu-west-cdg` (Paris), `eu-south-mad` (Madrid), `eu-north-waw` (Warsaw), `eu-north-sto` (Stockholm)
+**Europe:** `eu-west-ams` (Amsterdam), `eu-west-lhr` (London), `eu-west-man` (Manchester), `eu-central-fra` (Frankfurt), `eu-west-cdg` (Paris), `eu-south-mad` (Madrid), `eu-south-mxp` (Milan), `eu-north-waw` (Warsaw), `eu-north-sto` (Stockholm)
 
 **Asia Pacific:** `ap-northeast-nrt` (Tokyo), `ap-northeast-itm` (Osaka), `ap-northeast-icn` (Seoul), `ap-southeast-sin` (Singapore), `ap-south-bom` (Mumbai), `ap-south-del` (Delhi), `ap-south-blr` (Bangalore), `ap-west-tlv` (Tel Aviv)
 
@@ -1031,7 +982,7 @@ resource "quismon_notification_channel" "email" {
   type = "email"
 
   config = {
-    to = jsonencode(["dev@example.com", "ops@example.com"])
+    email = "dev@example.com"
   }
 
   enabled = true
@@ -1130,10 +1081,10 @@ output "api_key" {
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
 | `name` | String | Yes | Check name |
-| `type` | String | Yes | Check type: `http`, `https`, `tcp`, `ping`, `dns`, `dnssec`, `ssl`, `http3`, `throughput`, `smtp-imap`, `traceroute`, or `multistep` |
+| `type` | String | Yes | Check type: `http`, `https`, `ping`, `tcp`, `udp`, `dns`, `dnssec`, `ssl`, `multistep`, `smtp-imap`, `throughput`, `http3`, `traceroute`, `playwright`, or `dom` (alias `render`) |
 | `config` | Map | Yes | Check-specific configuration (see examples above) |
 | `interval_seconds` | Number | Yes | Check interval in seconds (minimum 60) |
-| `regions` | List | No | Monitoring regions (default: `["us-east-1"]`) |
+| `regions` | List | No | Monitoring regions (default: `["na-east-ewr"]`) |
 | `enabled` | Boolean | No | Whether check is enabled (default: `true`) |
 
 #### Attributes
@@ -1235,11 +1186,11 @@ output "slack_channel_id" {
 
 ## Import
 
-Existing resources can be imported using their ID:
+Existing resources can be imported using their ID. Alert rules are scoped under their check, so their import ID is `check_id:rule_id`:
 
 ```bash
 terraform import quismon_check.prod_api 550e8400-e29b-41d4-a716-446655440000
-terraform import quismon_alert_rule.api_down 660e8400-e29b-41d4-a716-446655440000
+terraform import quismon_alert_rule.api_down 550e8400-e29b-41d4-a716-446655440000:660e8400-e29b-41d4-a716-446655440000
 terraform import quismon_notification_channel.email 770e8400-e29b-41d4-a716-446655440000
 ```
 
@@ -1296,3 +1247,40 @@ Then run Terraform commands normally - it will use your local build.
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## EGM Blueprint
+
+> Note: this is a separate git repo embedded in the Quismon workspace monorepo; it releases independently via goreleaser on tag push.
+
+### Local Interface & Invariants
+
+- `main.go` — provider entry point: `providerserver.Serve` with address `registry.terraform.io/quismon/quismon`, `-debug` flag for delve, `version` set via ldflags (`main.go:main`)
+- `go.mod` — module `github.com/quismon/terraform-provider-quismon`, Go 1.24, terraform-plugin-framework v1.16.1
+
+### Subdirectories & System Boundaries
+
+- internal: [./internal/README.md](./internal/README.md) - private packages
+  - internal/client: [./internal/client/README.md](./internal/client/README.md) - HTTP client for the Quismon REST API (`DoRequest`, `{data,error,meta}` envelope, typed CRUD, quick-signup)
+  - internal/provider: [./internal/provider/README.md](./internal/provider/README.md) - Plugin Framework implementation: 6 resources, 4 data sources, plan-time validation, state-read API-key fallback
+- examples: [./examples/README.md](./examples/README.md) - 15 reference configurations (per check type, security/inverted, multistep, browser checks, full-stack)
+- scripts: [./scripts/README.md](./scripts/README.md) - `test.sh` acceptance runner; `tmi_check.py` public-docs leak gate
+- docs/, templates/ - generated/hand-written Registry documentation (codeless; no contract files)
+
+### Global Invariants
+
+- Provider config precedence: `api_key` attribute > `QUISMON_API_KEY` env > key read from `quismon_signup` in terraform state; `base_url` defaults to `https://api.quismon.com` (`internal/provider/provider.go:Configure`)
+- Alert-condition numeric keys are converted to JSON numbers before submission — string thresholds silently never fire (`internal/provider/alert_rule_resource.go:conditionValue`)
+- Check `config`/`config_json` are never refreshed from the API (sensitive fields redacted); drift is surfaced via `config_hash` warnings (`internal/provider/check_resource.go:Read`)
+- `regions` is a Set (order-free, unique) (`internal/provider/check_resource.go` schema)
+
+### Global Side Effects
+
+- All provider operations perform authenticated HTTP calls against the Quismon API; `quismon_signup` creates a real org + API key unauthenticated
+- The provider may read `terraform.tfstate` from the working directory to recover the signup API key (`internal/provider/state_reader.go`)
+
+### System Verification
+
+- Run: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`
+- Acceptance (real API, `TF_ACC=1` + `QUISMON_API_KEY`): `./scripts/test.sh [all|unit|acceptance|matrix|integration|quick]`

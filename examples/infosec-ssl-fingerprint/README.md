@@ -6,8 +6,11 @@ This example demonstrates how to use Quismon for security-focused SSL/TLS certif
 
 1. **Certificate Expiry Detection** - Alert before certificates expire
 2. **Fingerprint Verification** (Certificate Pinning) - Detect unauthorized certificate changes
-3. **Chain Validation** - Ensure proper certificate chain
-4. **Multi-domain Monitoring** - Monitor SAN certificates
+3. **SAN Validation** - Ensure multi-domain/wildcard certificates cover all expected domains
+
+> Issuer/chain validation is not currently a config option on the `ssl` check
+> type. Supported config keys: `hostname` (required), `port`, `warning_days`,
+> `expected_fingerprint`, `expected_domains`.
 
 ## Getting Certificate Fingerprints
 
@@ -47,7 +50,7 @@ FINGERPRINT=$(openssl x509 -in /etc/letsencrypt/live/$DOMAIN/cert.pem \
   -fingerprint -sha256 -noout | sed 's/.*=//; s/://g' | tr '[:upper:]' '[:lower:]')
 
 # Update Quismon check
-curl -X PATCH "https://api.quismon.com/v1/checks/$CHECK_ID" \
+curl -X PUT "https://api.quismon.com/v1/checks/$CHECK_ID" \
   -H "Authorization: Bearer $QUISMON_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"config\": {\"expected_fingerprint\": \"$FINGERPRINT\"}}"
@@ -102,12 +105,36 @@ For banking, healthcare, or other sensitive applications, pin the exact certific
 | Fingerprint changed | CRITICAL | Investigate immediately - possible attack |
 | Expiring < 7 days | HIGH | Renew immediately |
 | Expiring < 14 days | MEDIUM | Schedule renewal |
-| Chain invalid | HIGH | Check intermediate certificates |
 | SAN mismatch | MEDIUM | Certificate doesn't cover all domains |
 
 ## Files
 
 - `main.tf` - Complete Terraform configuration with examples
-- All check types: basic SSL, fingerprint pinning, multi-domain, chain validation
+- All check types: basic SSL, fingerprint pinning, multi-domain SAN validation
 - Multi-step combined SSL + HTTPS check
 - Alert rules and notification channels
+
+---
+
+## EGM Contract
+
+### Interface (main.tf)
+
+- Channels: `quismon_notification_channel.security_team_email` (`email = "security@example.com"`), `.security_slack` (placeholder webhook)
+- Checks: `website_ssl_expiry` (ssl, `warning_days = 14`), `website_ssl_fingerprint` (`hostname` + `expected_fingerprint`, 300s), `wildcard_ssl` (`expected_domains` jsonencode incl. wildcard SAN), `api_ssl_chain` (`hostname` + `port = 443` + `warning_days = 7`), `internal_api_ssl` (`port = 8443` + pinned `expected_fingerprint`), `ssl_and_health` (multistep: ssl step with `hostname`/`expected_fingerprint` + 2 https steps, `fail_fast = true`)
+- Alert rules: `cert_expiring`, `cert_fingerprint_changed` (CRITICAL naming), `api_ssl_invalid` — all `failure_threshold = 1` for immediate alerting
+- Outputs: `ssl_expiry_check_id`, `ssl_fingerprint_check_id`, `ssl_multistep_check_id`
+
+### Invariants
+
+- Fingerprint values are placeholders (64-hex `a1b2c3...`/`deadbeef...`) — replace with real SHA-256 values obtained via the openssl commands documented above (`main.tf`)
+- The multistep's per-step `expected_status = [200]` and total `timeout_seconds = 45` bound the combined flow (`main.tf` Example 6)
+- Comments document the certbot post-renewal hook pattern for updating fingerprints via `PUT /v1/checks/{id}` (`main.tf` Let's Encrypt section)
+
+### Side Effects
+
+- Applying creates 6 security checks + 2 channels + 3 alert rules; fingerprint checks alert on any certificate change
+
+### Verification
+
+- No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`

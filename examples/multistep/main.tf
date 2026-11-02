@@ -26,7 +26,7 @@ resource "quismon_check" "api_login_flow" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   # Use config_json for complex nested configs like multistep
   config_json = jsonencode({
@@ -71,7 +71,7 @@ resource "quismon_check" "checkout_flow" {
   interval_seconds = 600
   enabled          = true
 
-  regions = ["us-east-1", "eu-west-1"]
+  regions = ["na-east-ewr", "eu-west-ams"]
 
   config_json = jsonencode({
     steps = [
@@ -125,7 +125,7 @@ resource "quismon_check" "api_health_chain" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
     steps = [
@@ -172,7 +172,7 @@ resource "quismon_notification_channel" "ops_team" {
   type = "email"
 
   config = {
-    to = jsonencode(["ops@example.com"])
+    email = "ops@example.com"
   }
 
   enabled = true

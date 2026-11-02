@@ -44,6 +44,32 @@ terraform apply
 
 | Option | Description |
 |--------|-------------|
-| `warn_days_remaining` | Days before expiry to trigger warning |
-| `expected_fingerprint_sha256` | Verify exact certificate |
+| `hostname` | Domain to fetch the certificate from (required) |
+| `port` | Port to connect to (default: 443) |
+| `warning_days` | Days before expiry to trigger warning |
+| `expected_fingerprint` | Verify exact certificate (SHA-256) |
 | `expected_domains` | Validate Subject Alternative Names |
+
+---
+
+## EGM Contract
+
+### Interface (main.tf)
+
+- `quismon_notification_channel.slack`
+- Checks: `dns_a_record` (dns A + `expected_ips` jsonencode), `dns_mx_record` (dns MX), `dnssec_signed` (dnssec, `require_signed = true`), `dnssec_custom_ns` (dnssec + `nameservers`), `ssl_cert` (ssl, `warning_days = 30`), `ssl_cert_fingerprint` (`expected_fingerprint`), `ssl_cert_san` (`expected_domains` jsonencode)
+- Alert rules: `dns_failure`, `ssl_expiring` (both `health_status = "down"`)
+- Outputs: `dns_check_id`, `ssl_check_id`, `ssl_cert_health`
+
+### Invariants
+
+- dnssec and array-valued configs use `config_json`; flat ssl configs use the `config` map (`main.tf`)
+- Fingerprint value is a placeholder (`abc123def456...`) — must be replaced with a real SHA-256 (`main.tf`)
+
+### Side Effects
+
+- Applying creates DNS/DNSSEC/SSL checks (hourly SSL cadence) and 2 alert rules
+
+### Verification
+
+- No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`

@@ -18,7 +18,11 @@ provider "quismon" {
 # This example demonstrates how to monitor SSL/TLS certificates for:
 # 1. Expiry detection - Alert before certificates expire
 # 2. Fingerprint verification - Detect unauthorized certificate changes
-# 3. Chain validation - Ensure proper certificate chain
+# 3. SAN validation - Ensure the certificate covers all expected domains
+#
+# Note: issuer/chain validation is not currently a config option on the
+# ssl check type. Supported config keys: hostname, port, warning_days,
+# expected_fingerprint, expected_domains.
 #
 # Integration with Let's Encrypt:
 # - Use certbot or ACME client to deploy certificates
@@ -41,10 +45,8 @@ resource "quismon_check" "website_ssl_expiry" {
   regions = ["na-east-ewr", "eu-central-fra"]
 
   config = {
-    host               = "www.example.com"
-    port               = 443
-    expiry_threshold_days = 14  # Alert if expires within 14 days
-    timeout_seconds    = 10
+    hostname     = "www.example.com"
+    warning_days = 14 # Alert if expires within 14 days
   }
 }
 
@@ -70,17 +72,14 @@ resource "quismon_check" "website_ssl_expiry" {
 resource "quismon_check" "website_ssl_fingerprint" {
   name             = "Website SSL Fingerprint"
   type             = "ssl"
-  interval_seconds = 300  # Check every 5 minutes
+  interval_seconds = 300 # Check every 5 minutes
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config = {
-    host                   = "www.example.com"
-    port                   = 443
-    expected_fingerprint   = "a1b2c3d4e5f6789012345678901234567890abcdefabcdef0123456789abcdef"
-    fingerprint_algorithm  = "sha256"
-    timeout_seconds        = 10
+    hostname             = "www.example.com"
+    expected_fingerprint = "a1b2c3d4e5f6789012345678901234567890abcdefabcdef0123456789abcdef"
   }
 }
 
@@ -97,26 +96,25 @@ resource "quismon_check" "wildcard_ssl" {
   regions = ["na-east-ewr", "eu-central-fra", "ap-southeast-sin"]
 
   config = {
-    host                 = "example.com"
-    port                 = 443
-    expiry_threshold_days = 14
-    # Verify SAN includes expected domains
-    expected_san = jsonencode([
+    hostname = "example.com"
+    # Verify SAN includes expected domains (including the wildcard entry)
+    expected_domains = jsonencode([
       "example.com",
       "*.example.com",
       "www.example.com",
       "api.example.com"
     ])
-    timeout_seconds = 10
   }
 }
 
 # -----------------------------------------------------------------------------
-# Example 4: API Endpoint Certificate Chain Validation
+# Example 4: API Endpoint Certificate Monitoring
 # -----------------------------------------------------------------------------
-# Validates the entire certificate chain for an API
+# Monitors the certificate served by an API endpoint
+# (issuer/chain validation is not currently a config option - use expiry,
+# fingerprint, and SAN validation instead)
 resource "quismon_check" "api_ssl_chain" {
-  name             = "API SSL Chain Validation"
+  name             = "API SSL Certificate"
   type             = "ssl"
   interval_seconds = 1800 # Every 30 minutes
   enabled          = true
@@ -124,13 +122,9 @@ resource "quismon_check" "api_ssl_chain" {
   regions = ["na-east-ewr", "eu-central-fra"]
 
   config = {
-    host = "api.example.com"
-    port = 443
-    # Verify the issuer is Let's Encrypt (or your expected CA)
-    expected_issuer   = "Let's Encrypt Authority X3"
-    expiry_threshold_days = 7
-    verify_chain      = true
-    timeout_seconds   = 15
+    hostname     = "api.example.com"
+    port         = 443
+    warning_days = 7
   }
 }
 
@@ -144,17 +138,13 @@ resource "quismon_check" "internal_api_ssl" {
   interval_seconds = 3600
   enabled          = true
 
-  regions = ["na-east-ewr"]  # Only check from regions with VPN access
+  regions = ["na-east-ewr"] # Only check from regions with VPN access
 
   config = {
-    host               = "internal-api.example.local"
-    port               = 8443
-    # For self-signed certs, you might skip verification
-    # But ALWAYS pin the fingerprint to detect changes
-    expected_fingerprint   = "deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678"
-    skip_verify_chain  = false
-    expiry_threshold_days = 30
-    timeout_seconds    = 10
+    hostname = "internal-api.example.local"
+    port     = 8443
+    # For self-signed/private-CA certs, pin the fingerprint to detect changes
+    expected_fingerprint = "deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678"
   }
 }
 
@@ -176,11 +166,9 @@ resource "quismon_check" "ssl_and_health" {
         name = "Verify SSL Certificate"
         type = "ssl"
         config = {
-          host                 = "api.example.com"
+          hostname             = "api.example.com"
           port                 = 443
           expected_fingerprint = "a1b2c3d4e5f6789012345678901234567890abcdefabcdef0123456789abcdef"
-          expiry_threshold_days = 14
-          timeout_seconds      = 10
         }
       },
       {
@@ -197,11 +185,11 @@ resource "quismon_check" "ssl_and_health" {
         name = "Verify API Response"
         type = "https"
         config = {
-          url             = "https://api.example.com/v1/status"
-          method          = "GET"
-          expected_status = [200]
+          url              = "https://api.example.com/v1/status"
+          method           = "GET"
+          expected_status  = [200]
           expected_content = "operational"
-          timeout_seconds = 10
+          timeout_seconds  = 10
         }
       }
     ]
@@ -237,7 +225,7 @@ resource "quismon_check" "ssl_and_health" {
 #      -fingerprint -sha256 -noout | sed 's/.*=//; s/://g' | tr '[:upper:]' '[:lower:]')
 #
 #    # Update via API or Terraform
-#    curl -X PATCH "https://api.quismon.com/v1/checks/CHECK_ID" \
+#    curl -X PUT "https://api.quismon.com/v1/checks/CHECK_ID" \
 #      -H "Authorization: Bearer $QUISMON_API_KEY" \
 #      -H "Content-Type: application/json" \
 #      -d "{\"config\": {\"expected_fingerprint\": \"$FINGERPRINT\"}}"
@@ -246,26 +234,26 @@ resource "quismon_check" "ssl_and_health" {
 
 # Notification channels
 resource "quismon_notification_channel" "security_team_email" {
-  name   = "Security Team"
-  type   = "email"
-  config = { to = jsonencode(["security@example.com"]) }
+  name    = "Security Team"
+  type    = "email"
+  config  = { email = "security@example.com" }
   enabled = true
 }
 
 resource "quismon_notification_channel" "security_slack" {
-  name   = "Security Alerts Slack"
-  type   = "slack"
-  config = { webhook_url = "https://hooks.slack.com/services/XXX/YYY/ZZZ" }
+  name    = "Security Alerts Slack"
+  type    = "slack"
+  config  = { webhook_url = "https://hooks.slack.com/services/XXX/YYY/ZZZ" }
   enabled = true
 }
 
 # Alert: Certificate Expiring Soon
 resource "quismon_alert_rule" "cert_expiring" {
-  check_id  = quismon_check.website_ssl_expiry.id
-  name      = "SSL Certificate Expiring Soon"
-  enabled   = true
+  check_id = quismon_check.website_ssl_expiry.id
+  name     = "SSL Certificate Expiring Soon"
+  enabled  = true
   condition = {
-    failure_threshold = 1  # Alert immediately
+    failure_threshold = 1 # Alert immediately
   }
   notification_channel_ids = [
     quismon_notification_channel.security_team_email.id,
@@ -275,11 +263,11 @@ resource "quismon_alert_rule" "cert_expiring" {
 
 # Alert: Certificate Fingerprint Changed (CRITICAL - Possible Attack)
 resource "quismon_alert_rule" "cert_fingerprint_changed" {
-  check_id  = quismon_check.website_ssl_fingerprint.id
-  name      = "CRITICAL: SSL Certificate Changed"
-  enabled   = true
+  check_id = quismon_check.website_ssl_fingerprint.id
+  name     = "CRITICAL: SSL Certificate Changed"
+  enabled  = true
   condition = {
-    failure_threshold = 1  # Alert immediately
+    failure_threshold = 1 # Alert immediately
   }
   notification_channel_ids = [
     quismon_notification_channel.security_team_email.id,
@@ -287,11 +275,11 @@ resource "quismon_alert_rule" "cert_fingerprint_changed" {
   ]
 }
 
-# Alert: API SSL Chain Invalid
+# Alert: API SSL Check Failed
 resource "quismon_alert_rule" "api_ssl_invalid" {
-  check_id  = quismon_check.api_ssl_chain.id
-  name      = "API SSL Chain Validation Failed"
-  enabled   = true
+  check_id = quismon_check.api_ssl_chain.id
+  name     = "API SSL Check Failed"
+  enabled  = true
   condition = {
     failure_threshold = 1
   }

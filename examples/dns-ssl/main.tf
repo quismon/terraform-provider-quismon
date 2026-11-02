@@ -39,7 +39,7 @@ resource "quismon_check" "dns_a_record" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     domain       = "example.com"
@@ -55,7 +55,7 @@ resource "quismon_check" "dns_mx_record" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     domain      = "example.com"
@@ -70,12 +70,12 @@ resource "quismon_check" "dnssec_signed" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    domain        = "internetsociety.org"
-    record_type   = "A"
-    require_signed = true
+    domain          = "internetsociety.org"
+    record_type     = "A"
+    require_signed  = true
     timeout_seconds = 10
   })
 }
@@ -87,14 +87,14 @@ resource "quismon_check" "dnssec_custom_ns" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    domain        = "dnssec.works"
-    record_type   = "A"
-    require_signed = true
+    domain          = "dnssec.works"
+    record_type     = "A"
+    require_signed  = true
     timeout_seconds = 10
-    nameservers   = ["8.8.8.8", "1.1.1.1"]
+    nameservers     = ["8.8.8.8", "1.1.1.1"]
   })
 }
 
@@ -102,15 +102,15 @@ resource "quismon_check" "dnssec_custom_ns" {
 resource "quismon_check" "ssl_cert" {
   name             = "API Certificate Expiry"
   type             = "ssl"
-  interval_seconds = 3600  # Check every hour
+  interval_seconds = 3600 # Check every hour
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
-    domain              = "api.example.com"
-    port                = 443
-    warn_days_remaining = 30
+    hostname     = "api.example.com"
+    port         = 443
+    warning_days = 30
   }
 }
 
@@ -121,13 +121,13 @@ resource "quismon_check" "ssl_cert_fingerprint" {
   interval_seconds = 3600
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
-    domain                    = "critical.example.com"
-    port                      = 443
-    warn_days_remaining       = 30
-    expected_fingerprint_sha256 = "abc123def456..."  # Actual SHA-256 fingerprint
+    hostname             = "critical.example.com"
+    port                 = 443
+    warning_days         = 30
+    expected_fingerprint = "abc123def456..." # Actual SHA-256 fingerprint
   }
 }
 
@@ -138,13 +138,13 @@ resource "quismon_check" "ssl_cert_san" {
   interval_seconds = 3600
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
-    domain              = "secure.example.com"
-    port                = 443
-    warn_days_remaining = 30
-    expected_domains    = jsonencode([
+    hostname     = "secure.example.com"
+    port         = 443
+    warning_days = 30
+    expected_domains = jsonencode([
       "secure.example.com",
       "www.secure.example.com",
       "api.secure.example.com"

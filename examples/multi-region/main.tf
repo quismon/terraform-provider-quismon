@@ -16,16 +16,23 @@ variable "quismon_api_key" {
 }
 
 # Notification channel
-resource "quismon_notification_channel" "pagerduty" {
-  name = "PagerDuty Incidents"
-  type = "pagerduty"
+resource "quismon_notification_channel" "webhook" {
+  name = "Incident Webhook"
+  type = "webhook"
 
   config = {
-    routing_key = var.pagerduty_routing_key
+    url    = var.incident_webhook_url
+    method = "POST"
+    secret = var.incident_webhook_secret
   }
 }
 
-variable "pagerduty_routing_key" {
+variable "incident_webhook_url" {
+  type      = string
+  sensitive = true
+}
+
+variable "incident_webhook_secret" {
   type      = string
   sensitive = true
 }
@@ -39,11 +46,11 @@ resource "quismon_check" "api_multi_region" {
 
   # Monitor from multiple regions
   regions = [
-    "us-east-1",
-    "us-west-1",
-    "eu-west-1",
-    "eu-central-1",
-    "ap-southeast-1"
+    "na-east-ewr",
+    "na-west-lax",
+    "eu-west-ams",
+    "eu-central-fra",
+    "ap-southeast-sin"
   ]
 
   config = {
@@ -65,7 +72,7 @@ resource "quismon_alert_rule" "api_regional_failure" {
   }
 
   notification_channel_ids = [
-    quismon_notification_channel.pagerduty.id
+    quismon_notification_channel.webhook.id
   ]
 }
 
@@ -76,11 +83,11 @@ resource "quismon_alert_rule" "api_global_latency" {
   enabled  = true
 
   condition = {
-    response_time_ms = 3000  # 3 seconds
+    response_time_ms = 3000 # 3 seconds
   }
 
   notification_channel_ids = [
-    quismon_notification_channel.pagerduty.id
+    quismon_notification_channel.webhook.id
   ]
 }
 

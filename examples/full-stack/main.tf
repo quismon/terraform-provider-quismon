@@ -77,18 +77,18 @@ resource "quismon_notification_channel" "email" {
   type = "email"
 
   config = {
-    to = jsonencode([var.oncall_email])
+    email = var.oncall_email
   }
 
   enabled = true
 }
 
 resource "quismon_notification_channel" "webhook" {
-  name = "PagerDuty"
+  name = "Incident Webhook"
   type = "webhook"
 
   config = {
-    url = "https://events.pagerduty.com/integration/YOUR_KEY/enqueue"
+    url = "https://events.example.com/integration/YOUR_KEY/enqueue"
   }
 
   enabled = true
@@ -108,8 +108,8 @@ resource "quismon_check" "dns_a" {
   regions = ["na-east-ewr", "eu-west-ams"]
 
   config_json = jsonencode({
-    domain       = var.domain
-    record_type  = "A"
+    domain          = var.domain
+    record_type     = "A"
     timeout_seconds = 5
   })
 }
@@ -138,15 +138,15 @@ resource "quismon_alert_rule" "dns_change" {
 resource "quismon_check" "ssl_cert" {
   name             = "${var.domain} SSL Certificate"
   type             = "ssl"
-  interval_seconds = 3600  # Check hourly
+  interval_seconds = 3600 # Check hourly
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    hostname            = var.domain
-    port                = 443
-    warn_days_remaining = 30  # Warn 30 days before expiry
+    hostname     = var.domain
+    port         = 443
+    warning_days = 30 # Warn 30 days before expiry
   })
 }
 
@@ -179,12 +179,12 @@ resource "quismon_check" "website" {
   regions = ["na-east-ewr", "eu-west-ams", "ap-southeast-sin"]
 
   config_json = jsonencode({
-    url               = "https://${var.domain}"
-    method            = "GET"
-    expected_status   = [200]
-    expected_content  = "Welcome"
+    url                = "https://${var.domain}"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "Welcome"
     content_match_type = "contains"
-    timeout_seconds   = 10
+    timeout_seconds    = 10
   })
 }
 
@@ -233,12 +233,12 @@ resource "quismon_check" "api_health" {
   regions = ["na-east-ewr", "eu-west-ams"]
 
   config_json = jsonencode({
-    url              = "${var.api_endpoint}/health"
-    method           = "GET"
-    expected_status  = [200]
-    expected_content = "\"status\":\"ok\""
+    url                = "${var.api_endpoint}/health"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "\"status\":\"ok\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 }
 
@@ -314,7 +314,7 @@ resource "quismon_check" "admin_panel_security" {
   config_json = jsonencode({
     url             = "https://${var.domain}/admin"
     method          = "GET"
-    expected_status = [401, 403]  # Should be unauthorized
+    expected_status = [401, 403] # Should be unauthorized
     timeout_seconds = 10
   })
 
@@ -329,7 +329,7 @@ resource "quismon_alert_rule" "admin_exposed" {
   enabled  = true
 
   condition = {
-    health_status = "down"  # For inverted checks, down means the problem is NOT detected
+    health_status = "down" # For inverted checks, down means the problem is NOT detected
   }
 
   notification_channel_ids = [
@@ -349,7 +349,7 @@ resource "quismon_check" "dev_ports_closed" {
 
   config_json = jsonencode({
     host            = var.domain
-    port            = 3000  # Common dev port
+    port            = 3000 # Common dev port
     timeout_seconds = 5
   })
 
@@ -373,8 +373,8 @@ output "monitoring_summary" {
 
 output "notification_channels" {
   value = {
-    slack  = quismon_notification_channel.slack.id
-    email  = quismon_notification_channel.email.id
+    slack   = quismon_notification_channel.slack.id
+    email   = quismon_notification_channel.email.id
     webhook = quismon_notification_channel.webhook.id
   }
 }

@@ -174,3 +174,28 @@ This approach provides:
 
 - [Multistep Basic](../multistep/) - Basic multistep check patterns
 - [Multistep Advanced](../multistep-advanced/) - Complex workflows with conditionals
+
+---
+
+## EGM Contract
+
+### Interface (main.tf)
+
+- `quismon_check.vault_secret_fetch` — 4-step multistep: `vault-login` (POST `/v1/auth/userpass/login/{user}`, extracts `vault_token` + `lease_duration`), `read-db-secret` (GET KV v2 `secret/data/database/production`, extracts db_host/port/user/password), `read-api-secret`, `use-secrets` (GET `{{api_url}}/health` with `Bearer {{api_key}}`); `fail_fast = false`, total `timeout_seconds = 60`
+- `quismon_alert_rule.vault_check_failure` — `health_status = "down"`; `notification_channel_ids` is commented out (fill in before applying)
+- Outputs: `check_id`, `check_name`, `alert_rule_id`
+- Variables: `quismon_api_key`, `vault_base_url`, `vault_username`, `vault_password` (sensitive)
+
+### Invariants
+
+- Vault tokens ride the `X-Vault-Token` header via `{{vault_token}}` interpolation; secrets never land in Terraform state beyond the variable values themselves (`main.tf` steps 2–3)
+- KV v2 paths use `secret/data/{path}` (`main.tf` URLs)
+- Provider pin `quismon >= 1.0.0` (`main.tf` terraform block)
+
+### Side Effects
+
+- Applying creates a check that authenticates to Vault every 300s and reads production secrets (ensure the monitoring user has least-privilege read policies)
+
+### Verification
+
+- No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`

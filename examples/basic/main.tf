@@ -17,7 +17,7 @@ resource "quismon_notification_channel" "email" {
   type = "email"
 
   config = {
-    to = jsonencode(["ops@example.com"])
+    email = "ops@example.com"
   }
 
   enabled = true
@@ -30,7 +30,7 @@ resource "quismon_check" "website" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     url                  = "https://www.example.com"

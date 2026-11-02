@@ -57,7 +57,7 @@ func (r *notificationChannelResource) Schema(_ context.Context, _ resource.Schem
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Channel type: email, webhook, ntfy, slack, or pagerduty.",
+				Description: "Channel type: email, ntfy, webhook, or slack.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{

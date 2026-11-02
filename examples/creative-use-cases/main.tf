@@ -47,8 +47,8 @@ variable "slack_webhook_url" {
   sensitive   = true
 }
 
-variable "pagerduty_webhook" {
-  description = "PagerDuty webhook for critical alerts"
+variable "incident_webhook" {
+  description = "Webhook URL for critical alerts (e.g. your incident tool)"
   type        = string
   sensitive   = true
   default     = ""
@@ -83,12 +83,12 @@ resource "quismon_notification_channel" "slack_ops" {
   enabled = true
 }
 
-resource "quismon_notification_channel" "pagerduty" {
-  count = var.pagerduty_webhook != "" ? 1 : 0
-  name  = "PagerDuty"
+resource "quismon_notification_channel" "incident_webhook" {
+  count = var.incident_webhook != "" ? 1 : 0
+  name  = "Incident Webhook"
   type  = "webhook"
   config = {
-    url = var.pagerduty_webhook
+    url = var.incident_webhook
   }
   enabled = true
 }
@@ -108,12 +108,12 @@ resource "quismon_check" "blue_target" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "https://blue.${var.primary_domain}/health"
-    method           = "GET"
-    expected_status  = [200]
-    expected_content = "\"status\":\"healthy\""
+    url                = "https://blue.${var.primary_domain}/health"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "\"status\":\"healthy\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 
   # Tag for easy identification
@@ -129,12 +129,12 @@ resource "quismon_check" "green_target" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "https://green.${var.primary_domain}/health"
-    method           = "GET"
-    expected_status  = [200]
-    expected_content = "\"status\":\"healthy\""
+    url                = "https://green.${var.primary_domain}/health"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "\"status\":\"healthy\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 }
 
@@ -166,16 +166,16 @@ resource "quismon_check" "third_party_health" {
 
   name             = "${each.key} API Health"
   type             = "https"
-  interval_seconds = 300  # Check every 5 minutes
+  interval_seconds = 300 # Check every 5 minutes
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = each.value
-    method           = "GET"
-    expected_status  = [200]
-    timeout_seconds  = 10
+    url             = each.value
+    method          = "GET"
+    expected_status = [200]
+    timeout_seconds = 10
   })
 }
 
@@ -212,13 +212,13 @@ resource "quismon_check" "dns_failover_primary" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "https://${var.primary_domain}/region"
-    method           = "GET"
-    expected_status  = [200]
+    url             = "https://${var.primary_domain}/region"
+    method          = "GET"
+    expected_status = [200]
     # Response should indicate the primary region
-    expected_content = "\"region\":\"us-east\""
+    expected_content   = "\"region\":\"us-east\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 }
 
@@ -232,13 +232,13 @@ resource "quismon_check" "dns_failover_secondary" {
   regions = ["eu-west-ams"]
 
   config_json = jsonencode({
-    url              = "https://${var.primary_domain}/region"
-    method           = "GET"
-    expected_status  = [200]
+    url             = "https://${var.primary_domain}/region"
+    method          = "GET"
+    expected_status = [200]
     # Response should indicate the secondary region
-    expected_content = "\"region\":\"eu-west\""
+    expected_content   = "\"region\":\"eu-west\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 }
 
@@ -251,14 +251,14 @@ resource "quismon_check" "dns_failover_secondary" {
 resource "quismon_check" "rate_limit_working" {
   name             = "API Rate Limit Verification"
   type             = "https"
-  interval_seconds = 600  # Check every 10 minutes
+  interval_seconds = 600 # Check every 10 minutes
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url             = "${var.api_domain}/v1/test-endpoint"
-    method          = "GET"
+    url    = "${var.api_domain}/v1/test-endpoint"
+    method = "GET"
     # We expect rate limiting to kick in (429 Too Many Requests)
     # If we get 200, rate limiting might be broken
     expected_status = [429]
@@ -298,10 +298,10 @@ resource "quismon_check" "cdn_static_assets" {
   regions = ["na-east-ewr", "eu-west-ams", "ap-southeast-sin"]
 
   config_json = jsonencode({
-    url              = "https://${var.primary_domain}/static/logo.png"
-    method           = "GET"
-    expected_status  = [200]
-    timeout_seconds  = 5
+    url             = "https://${var.primary_domain}/static/logo.png"
+    method          = "GET"
+    expected_status = [200]
+    timeout_seconds = 5
   })
 }
 
@@ -334,11 +334,11 @@ resource "quismon_check" "not_in_maintenance" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "https://${var.primary_domain}/"
-    method           = "GET"
-    expected_status  = [200]
+    url             = "https://${var.primary_domain}/"
+    method          = "GET"
+    expected_status = [200]
     # Ensure we don't see maintenance page
-    timeout_seconds  = 10
+    timeout_seconds = 10
   })
 }
 
@@ -352,8 +352,8 @@ resource "quismon_check" "no_503_maintenance" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url             = "https://${var.primary_domain}/"
-    method          = "GET"
+    url    = "https://${var.primary_domain}/"
+    method = "GET"
     # We expect 200, not 503
     expected_status = [200]
     timeout_seconds = 10
@@ -374,13 +374,13 @@ resource "quismon_check" "api_version_contract" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "${var.api_domain}/version"
-    method           = "GET"
-    expected_status  = [200]
+    url             = "${var.api_domain}/version"
+    method          = "GET"
+    expected_status = [200]
     # Verify API is returning expected version
-    expected_content = "\"version\":\"${var.current_api_version}\""
+    expected_content   = "\"version\":\"${var.current_api_version}\""
     content_match_type = "contains"
-    timeout_seconds  = 5
+    timeout_seconds    = 5
   })
 }
 
@@ -408,15 +408,15 @@ resource "quismon_alert_rule" "api_version_changed" {
 resource "quismon_check" "ssl_main" {
   name             = "Main Site SSL"
   type             = "ssl"
-  interval_seconds = 3600  # Check hourly
+  interval_seconds = 3600 # Check hourly
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    hostname            = var.primary_domain
-    port                = 443
-    warn_days_remaining = 30
+    hostname     = var.primary_domain
+    port         = 443
+    warning_days = 30
   })
 }
 
@@ -429,9 +429,9 @@ resource "quismon_check" "ssl_api" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    hostname            = var.api_domain
-    port                = 443
-    warn_days_remaining = 30
+    hostname     = var.api_domain
+    port         = 443
+    warning_days = 30
   })
 }
 
@@ -451,8 +451,8 @@ resource "quismon_check" "geo_block_working" {
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url             = "https://${var.primary_domain}/"
-    method          = "GET"
+    url    = "https://${var.primary_domain}/"
+    method = "GET"
     # We expect 200 from allowed region
     expected_status = [200]
     timeout_seconds = 10
@@ -472,18 +472,18 @@ resource "quismon_check" "geo_block_working" {
 resource "quismon_check" "backend_service" {
   name             = "Backend Service Health"
   type             = "https"
-  interval_seconds = 15  # Frequent checks for circuit breaker monitoring
+  interval_seconds = 15 # Frequent checks for circuit breaker monitoring
   enabled          = true
 
   regions = ["na-east-ewr"]
 
   config_json = jsonencode({
-    url              = "${var.api_domain}/health"
-    method           = "GET"
-    expected_status  = [200]
-    expected_content = "\"healthy\":true"
+    url                = "${var.api_domain}/health"
+    method             = "GET"
+    expected_status    = [200]
+    expected_content   = "\"healthy\":true"
     content_match_type = "contains"
-    timeout_seconds  = 3
+    timeout_seconds    = 3
   })
 
   # Enable recheck on failure for faster detection
@@ -496,13 +496,13 @@ resource "quismon_alert_rule" "circuit_breaker_trip" {
   enabled  = true
 
   condition = {
-    failure_threshold = 3  # Circuit breaker threshold
+    failure_threshold = 3 # Circuit breaker threshold
   }
 
-  notification_channel_ids = var.pagerduty_webhook != "" ? [
+  notification_channel_ids = var.incident_webhook != "" ? [
     quismon_notification_channel.slack_ops.id,
-    quismon_notification_channel.pagerduty[0].id
-  ] : [
+    quismon_notification_channel.incident_webhook[0].id
+    ] : [
     quismon_notification_channel.slack_ops.id
   ]
 }
@@ -515,7 +515,7 @@ resource "quismon_alert_rule" "circuit_breaker_trip" {
 resource "quismon_check" "mail_server" {
   name             = "Mail Server E2E"
   type             = "smtp-imap"
-  interval_seconds = 1800  # Check every 30 minutes
+  interval_seconds = 1800 # Check every 30 minutes
   enabled          = true
 
   regions = ["na-east-ewr"]
@@ -524,7 +524,7 @@ resource "quismon_check" "mail_server" {
     smtp_host     = "mail.${var.primary_domain}"
     smtp_port     = 587
     smtp_username = "monitoring@${var.primary_domain}"
-    smtp_password = "CHANGE_ME"  # Use a variable in production
+    smtp_password = "CHANGE_ME" # Use a variable in production
     imap_host     = "mail.${var.primary_domain}"
     imap_port     = 993
     imap_username = "monitoring@${var.primary_domain}"
@@ -564,14 +564,14 @@ resource "quismon_check" "http3_support" {
 resource "quismon_check" "download_throughput" {
   name             = "CDN Download Throughput"
   type             = "throughput"
-  interval_seconds = 3600  # Test hourly
+  interval_seconds = 3600 # Test hourly
   enabled          = true
 
   regions = ["na-east-ewr", "eu-west-ams"]
 
   config_json = jsonencode({
-    url          = "https://${var.primary_domain}/downloads/test-10mb.bin"
-    max_size_mb  = 10
+    url             = "https://${var.primary_domain}/downloads/test-10mb.bin"
+    max_size_mb     = 10
     timeout_seconds = 60
   })
 }
@@ -592,12 +592,12 @@ output "creative_monitoring_summary" {
       secondary = quismon_check.dns_failover_secondary.id
     }
     security_checks = {
-      rate_limit   = quismon_check.rate_limit_working.id
-      ssl_main     = quismon_check.ssl_main.id
-      ssl_api      = quismon_check.ssl_api.id
+      rate_limit = quismon_check.rate_limit_working.id
+      ssl_main   = quismon_check.ssl_main.id
+      ssl_api    = quismon_check.ssl_api.id
     }
     performance_checks = {
-      cdn       = quismon_check.cdn_static_assets.id
+      cdn        = quismon_check.cdn_static_assets.id
       throughput = quismon_check.download_throughput.id
     }
     protocol_checks = {

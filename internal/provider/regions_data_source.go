@@ -97,6 +97,7 @@ func (d *regionsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		{"na-east-atl", "Atlanta, USA", "Atlanta", "United States", "na"},
 		{"na-east-yto", "Toronto, Canada", "Toronto", "Canada", "na"},
 		{"na-central-mex", "Mexico City, Mexico", "Mexico City", "Mexico", "na"},
+		{"na-west-hnl", "Honolulu, USA", "Honolulu", "United States", "na"},
 		// South America
 		{"sa-east-sao", "São Paulo, Brazil", "São Paulo", "Brazil", "sa"},
 		{"sa-west-scl", "Santiago, Chile", "Santiago", "Chile", "sa"},
@@ -107,6 +108,7 @@ func (d *regionsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		{"eu-central-fra", "Frankfurt, Germany", "Frankfurt", "Germany", "eu"},
 		{"eu-west-cdg", "Paris, France", "Paris", "France", "eu"},
 		{"eu-south-mad", "Madrid, Spain", "Madrid", "Spain", "eu"},
+		{"eu-south-mxp", "Milan, Italy", "Milan", "Italy", "eu"},
 		{"eu-north-waw", "Warsaw, Poland", "Warsaw", "Poland", "eu"},
 		{"eu-north-sto", "Stockholm, Sweden", "Stockholm", "Sweden", "eu"},
 		// Asia Pacific
@@ -158,12 +160,13 @@ func ValidateRegion(code string) error {
 		"na-east-ewr": true, "na-west-sjc": true, "na-west-lax": true,
 		"na-west-sea": true, "na-central-dfw": true, "na-central-ord": true,
 		"na-east-mia": true, "na-east-atl": true, "na-east-yto": true,
-		"na-central-mex": true,
+		"na-central-mex": true, "na-west-hnl": true,
 		// South America
 		"sa-east-sao": true, "sa-west-scl": true,
 		// Europe
 		"eu-west-ams": true, "eu-west-lhr": true, "eu-west-man": true,
 		"eu-central-fra": true, "eu-west-cdg": true, "eu-south-mad": true,
+		"eu-south-mxp": true,
 		"eu-north-waw": true, "eu-north-sto": true,
 		// Asia Pacific
 		"ap-northeast-nrt": true, "ap-northeast-itm": true,
