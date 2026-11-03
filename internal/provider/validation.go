@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -264,25 +263,6 @@ func parseFloatFromInterface(v interface{}, defaultValue float64) float64 {
 	default:
 		return defaultValue
 	}
-}
-
-// validatePlaywrightConfigJSON validates Playwright config from a JSON string
-// This is used for Terraform plan-time validation
-func validatePlaywrightConfigJSON(configJSON string, checkType string) error {
-	if checkType != "playwright" {
-		return nil // Not a Playwright check, no validation needed
-	}
-
-	if configJSON == "" {
-		return fmt.Errorf("playwright check requires 'config_json' to be specified")
-	}
-
-	var configMap map[string]interface{}
-	if err := json.Unmarshal([]byte(configJSON), &configMap); err != nil {
-		return fmt.Errorf("could not parse config_json as JSON: %w", err)
-	}
-
-	return validatePlaywrightConfig(configMap)
 }
 
 // validateDomConfig validates dom check config at plan time.

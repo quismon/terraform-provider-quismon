@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -40,12 +41,17 @@ func TestProvider(t *testing.T) {
 }
 
 func TestProvider_Schema(t *testing.T) {
-	provider := New("test")()
+	p := New("test")()
 
-	// Ensure the provider schema is valid
-	schemaReq := provider.Schema
-	if schemaReq == nil {
-		t.Fatal("Provider schema method is nil")
+	// Actually invoke the schema method - comparing the method value to nil
+	// proves nothing (it is a function value).
+	var resp provider.SchemaResponse
+	p.Schema(context.Background(), provider.SchemaRequest{}, &resp)
+	if len(resp.Schema.Attributes) == 0 {
+		t.Fatal("provider schema has no attributes")
+	}
+	for _, d := range resp.Diagnostics.Errors() {
+		t.Fatalf("provider schema diagnostics: %v", d)
 	}
 }
 
