@@ -31,3 +31,7 @@ multi-step e-commerce flow, and a disabled cross-browser (Firefox) variant.
 ## Verification
 
 - No test manifest in this directory; inherits the provider module's verification: `cd /workspace/terraform-provider-quismon && CGO_ENABLED=0 go test ./...`
+
+## Script grammar
+
+`script_inline` uses the versioned **body-v1** grammar: top-level statements only, with `page`, `context`, `browser`, `step`, `endStep`, `secrets`, and `console` in scope. Function/arrow wrappers, CommonJS/ESM, and `this` are rejected by the API. Use `secrets` (configured via `config.secrets`) instead of inlining credentials. `GET /v1/check-types` exposes `data.playwright_script_grammar`.
