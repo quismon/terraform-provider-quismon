@@ -168,8 +168,6 @@ resource "quismon_check" "full_script_test" {
     sensitive_variables = ["password"]
 
     script_inline = <<SCRIPT
-const { page } = this;
-
 // Navigate to login page
 await page.goto('{{base_url}}/login');
 await page.waitForLoadState('networkidle');
@@ -231,8 +229,6 @@ resource "quismon_check" "api_endpoint_test" {
     sensitive_variables = ["api_token"]
 
     script_inline = <<SCRIPT
-const { page, context } = this;
-
 // Set authentication header
 await context.setExtraHTTPHeaders({
   'Authorization': 'Bearer {{api_token}}',
@@ -295,8 +291,6 @@ resource "quismon_check" "ecommerce_flow_test" {
     }
 
     script_inline = <<SCRIPT
-const { page } = this;
-
 // Step 1: Navigate to products page
 await page.goto('{{base_url}}/products');
 await page.waitForSelector('.product-list');
@@ -380,8 +374,6 @@ resource "quismon_check" "cross_browser_test" {
     }
 
     script_inline = <<SCRIPT
-const { page } = this;
-
 await page.goto('{{target_url}}');
 await page.waitForLoadState('networkidle');
 

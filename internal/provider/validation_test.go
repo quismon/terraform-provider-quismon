@@ -86,6 +86,44 @@ func TestValidateDomConfig(t *testing.T) {
 			wantErr: true,
 			errHint: "requires either",
 		},
+		{
+			name:   "expected_text array",
+			config: map[string]interface{}{"url": "https://example.com/", "expected_text": []interface{}{"Welcome", "Sign out"}},
+		},
+		{
+			name:   "expected_text string list",
+			config: map[string]interface{}{"url": "https://example.com/", "expected_text": []string{"Welcome"}},
+		},
+		{
+			name:    "expected_text empty array",
+			config:  map[string]interface{}{"url": "https://example.com/", "expected_text": []interface{}{}},
+			wantErr: true,
+			errHint: "at least one",
+		},
+		{
+			name:    "expected_text blank entry",
+			config:  map[string]interface{}{"url": "https://example.com/", "expected_text": []interface{}{"ok", "  "}},
+			wantErr: true,
+			errHint: "must not be empty",
+		},
+		{
+			name:    "expected_text non-string entry",
+			config:  map[string]interface{}{"url": "https://example.com/", "expected_text": []interface{}{"ok", 2}},
+			wantErr: true,
+			errHint: "must be a string",
+		},
+		{
+			name:    "expected_text wrong type",
+			config:  map[string]interface{}{"url": "https://example.com/", "expected_text": 2},
+			wantErr: true,
+			errHint: "string or an array",
+		},
+		{
+			name:    "script and expected_text conflict",
+			config:  map[string]interface{}{"script": "return { ok: true };", "expected_text": "Welcome"},
+			wantErr: true,
+			errHint: "cannot be combined",
+		},
 	}
 
 	for _, tt := range tests {

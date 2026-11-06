@@ -90,7 +90,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom.",
+				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom (alias: render).",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
@@ -280,7 +280,7 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Validate dom configuration at plan time (script size + script/url presence)
-	if plan.Type.ValueString() == "dom" {
+	if plan.Type.ValueString() == "dom" || plan.Type.ValueString() == "render" {
 		if err := validateDomConfig(configMap); err != nil {
 			resp.Diagnostics.AddError(
 				"Invalid Dom Configuration",
@@ -515,7 +515,7 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Validate dom configuration at plan time (if config is being updated)
-	if plan.Type.ValueString() == "dom" && len(configMap) > 0 {
+	if (plan.Type.ValueString() == "dom" || plan.Type.ValueString() == "render") && len(configMap) > 0 {
 		if err := validateDomConfig(configMap); err != nil {
 			resp.Diagnostics.AddError(
 				"Invalid Dom Configuration",

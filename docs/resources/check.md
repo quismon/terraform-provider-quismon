@@ -80,10 +80,11 @@ Emits: `connected`, `resolved_ips`. `response_time_ms` = connect latency.
 | `nameservers` | array | system resolvers | IPv4/IPv6, optional port |
 | `timeout_seconds` | number | `10` | |
 
-Verifies that DNSKEY and DS records are present for the zone, then performs
-a normal lookup of the requested type. Note: this confirms signed-zone
-records exist; it does not perform full cryptographic chain-of-trust
-validation.
+Performs full cryptographic chain-of-trust validation against the root
+trust anchor (DNSKEY + DS + RRSIG verification). A broken chain - bad
+signature, missing DS at the parent - fails the check with a descriptive
+error. `validate_chain` (default true) can be set to false for
+presence-only checking.
 
 ### ssl
 
@@ -544,7 +545,7 @@ resource "quismon_check" "app_after_db" {
 
 - `interval_seconds` (Number) Check interval in seconds (minimum 60).
 - `name` (String) Check name.
-- `type` (String) Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute.
+- `type` (String) Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom (alias: render).
 
 ### Optional
 

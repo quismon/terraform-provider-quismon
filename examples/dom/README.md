@@ -10,7 +10,7 @@ steps and share extracted variables.
 ## Interface
 
 - `main.tf` resources:
-  - `quismon_check.spa_health` — declarative dom: `url`, `expected_status_code`, `expected_selector`, `expected_text`
+  - `quismon_check.spa_health` — declarative dom: `url`, `expected_status_code`, `expected_selector`, `expected_text` (string or array of strings)
   - `quismon_check.authenticated_journey` — scripted dom via `config_json`: `secrets` map referenced in the script as `$LP_APP_EMAIL`/`$LP_APP_PASSWORD`, `script` heredoc using `page.fill`/`page.click`/`page.waitForSelector`/`page.extract`
   - `quismon_check.build_deployment` — multistep: http step extracts `build`, followed by a dom step
   - `quismon_check.dom_mixed_flow` — 4-step multistep: dom extract (`selector`+`attribute`) → http POST with `{{site_title}}` in body → Bearer GET with `{{token}}` → dom `expected_js` assertion using `{{token}}`/`{{whoami}}`

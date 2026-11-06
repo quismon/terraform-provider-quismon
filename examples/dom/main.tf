@@ -31,7 +31,7 @@ resource "quismon_check" "spa_health" {
     url                  = "https://app.example.com/dashboard"
     expected_status_code = "200"
     expected_selector    = "#root .main-view"
-    expected_text        = "Welcome"
+    expected_text        = ["Welcome", "Sign out"]
     timeout_seconds      = "30"
   }
 }

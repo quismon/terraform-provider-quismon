@@ -19,7 +19,7 @@ Manages a Quismon notification channel.
 
 - `config` (Map of String) Channel-specific configuration.
 - `name` (String) Channel name.
-- `type` (String) Channel type: email, webhook, ntfy, slack, or pagerduty.
+- `type` (String) Channel type: email, ntfy, webhook, or slack.
 
 ### Optional
 

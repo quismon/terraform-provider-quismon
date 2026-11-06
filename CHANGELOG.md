@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-06
+
+### Fixed
+
+- **DOM `expected_text` validation**: plan-time validation now accepts a
+  non-empty string or a non-empty array of non-empty strings, mirroring the
+  API/checker contract; empty arrays, blank entries, and non-string entries
+  fail at plan time instead of reaching the checker.
+- **DOM `script` + `expected_text` conflict**: rejected at plan time, matching
+  the API's `conflicting_sources` rule.
+- **`render` alias**: plan-time DOM validation now applies to the legacy
+  `render` type as well as `dom`, and the type description documents the alias.
+- **Examples**: declarative DOM example uses an `expected_text` array;
+  Playwright examples use the supported body form (no callback wrapper or
+  `const { page } = this`).
+
 ## [1.4.0] - 2026-10-30
 
 ### Added

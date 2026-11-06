@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // validatePlaywrightConfig validates the Playwright check configuration
@@ -271,6 +272,9 @@ func parseFloatFromInterface(v interface{}, defaultValue float64) float64 {
 func validateDomConfig(configMap map[string]interface{}) error {
 	url, hasURL := configMap["url"]
 	script, hasScript := configMap["script"]
+	if err := validateDomExpectedText(configMap); err != nil {
+		return err
+	}
 	if !hasURL && !hasScript {
 		return fmt.Errorf("dom check requires either 'url' (declarative assertions) or 'script' (PandaScript)")
 	}
@@ -293,6 +297,58 @@ func validateDomConfig(configMap map[string]interface{}) error {
 				return fmt.Errorf("dom 'url' must be a non-empty string when 'script' is absent")
 			}
 		}
+	}
+	return nil
+}
+
+// validateDomExpectedText mirrors the API/checker contract for dom
+// expected_text: a non-empty string or a non-empty array of non-empty
+// strings, and never combined with a PandaScript.
+func validateDomExpectedText(configMap map[string]interface{}) error {
+	raw, ok := configMap["expected_text"]
+	if !ok || raw == nil {
+		return nil
+	}
+	if script, hasScript := configMap["script"]; hasScript && script != nil {
+		if text, ok := script.(string); !ok || strings.TrimSpace(text) != "" {
+			return fmt.Errorf("dom 'script' and 'expected_text' cannot be combined (remove one)")
+		}
+	}
+	check := func(value interface{}, index int) error {
+		text, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("dom 'expected_text[%d]' must be a string", index)
+		}
+		if strings.TrimSpace(text) == "" {
+			return fmt.Errorf("dom 'expected_text[%d]' must not be empty", index)
+		}
+		return nil
+	}
+	switch value := raw.(type) {
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("dom 'expected_text' must not be empty")
+		}
+	case []interface{}:
+		if len(value) == 0 {
+			return fmt.Errorf("dom 'expected_text' array must contain at least one string")
+		}
+		for i, item := range value {
+			if err := check(item, i); err != nil {
+				return err
+			}
+		}
+	case []string:
+		if len(value) == 0 {
+			return fmt.Errorf("dom 'expected_text' array must contain at least one string")
+		}
+		for i, item := range value {
+			if err := check(item, i); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("dom 'expected_text' must be a string or an array of strings")
 	}
 	return nil
 }
