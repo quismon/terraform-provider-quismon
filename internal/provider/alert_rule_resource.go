@@ -79,8 +79,9 @@ func (r *alertRuleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				ElementType: types.StringType,
 			},
 			"notify_on": schema.StringAttribute{
-				Description: "When to notify: unhealthy (default), healthy, or both.",
+				Description: "When to notify: unhealthy (server default), healthy, or both.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"message_template": schema.StringAttribute{
 				Description: "Optional custom notification message template. Supports template variables - see GET /v1/alerts/template-variables.",
@@ -198,6 +199,16 @@ func (r *alertRuleResource) Read(ctx context.Context, req resource.ReadRequest, 
 	state.Enabled = types.BoolValue(rule.Enabled)
 	state.CreatedAt = types.StringValue(rule.CreatedAt)
 	state.UpdatedAt = types.StringValue(rule.UpdatedAt)
+	if rule.NotifyOn != "" {
+		state.NotifyOn = types.StringValue(rule.NotifyOn)
+	} else {
+		state.NotifyOn = types.StringNull()
+	}
+	if rule.MessageTemplate != "" {
+		state.MessageTemplate = types.StringValue(rule.MessageTemplate)
+	} else {
+		state.MessageTemplate = types.StringNull()
+	}
 
 	// Convert condition map to Terraform Map type (string values)
 	conditionStrMap := make(map[string]string)

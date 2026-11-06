@@ -26,7 +26,7 @@ Manages a Quismon alert rule.
 
 - `enabled` (Boolean) Whether the alert rule is enabled.
 - `message_template` (String) Optional custom notification message template. Supports template variables - see GET /v1/alerts/template-variables.
-- `notify_on` (String) When to notify: unhealthy (default), healthy, or both.
+- `notify_on` (String) When to notify: unhealthy (server default), healthy, or both.
 
 ### Read-Only
 

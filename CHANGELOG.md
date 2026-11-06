@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-11-06
+
+### Fixed
+
+- **`quismon_alert_rule.notify_on` default**: the API returns
+  `notify_on: "unhealthy"` when the field is omitted, but the provider marked
+  `notify_on` Optional-only and could not store the server default, causing
+  "Provider produced inconsistent result after apply" on a normal alert-rule
+  create. The attribute is now Optional+Computed and Read refreshes both
+  `notify_on` and `message_template` from the API. The basic example now
+  applies cleanly end-to-end.
+
 ## [1.4.1] - 2026-11-06
 
 ### Fixed
