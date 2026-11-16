@@ -1084,6 +1084,8 @@ output "api_key" {
 | `type` | String | Yes | Check type: `http`, `https`, `ping`, `tcp`, `udp`, `dns`, `dnssec`, `ssl`, `multistep`, `smtp-imap`, `throughput`, `http3`, `traceroute`, `playwright`, or `dom` (alias `render`) |
 | `config` | Map | Yes | Check-specific configuration (see examples above) |
 | `interval_seconds` | Number | Yes | Check interval in seconds (minimum 60) |
+| `region_threshold` | Multi-region consensus threshold (default 1). ALWAYS sent on update; removing it resets to 1. |
+| `result_webhook` | Sensitive. Per-check result webhook (fire-once, unsigned, per-region). Removing the attribute clears it. |
 | `regions` | List | No | Monitoring regions (default: `["na-east-ewr"]`) |
 | `enabled` | Boolean | No | Whether check is enabled (default: `true`) |
 

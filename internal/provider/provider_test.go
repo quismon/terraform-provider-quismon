@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
@@ -226,4 +227,53 @@ func TestCheckResourceModel_Types(t *testing.T) {
 	if !model.Enabled.ValueBool() {
 		t.Error("Enabled type incorrect")
 	}
+}
+
+// TestCheckResourceSchema_Q059Attributes pins the Q-059 additions: both new
+// attributes exist with the right flags, and iac_locked carries the
+// deprecation message (pinned verbatim so the promise cannot drift).
+func TestCheckResourceSchema_Q059Attributes(t *testing.T) {
+	ctx := context.Background()
+	r := NewCheckResource()
+
+	schemaResp := &resource.SchemaResponse{}
+	r.Schema(ctx, resource.SchemaRequest{}, schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("Schema returned errors: %v", schemaResp.Diagnostics)
+	}
+
+	rt, ok := schemaResp.Schema.Attributes["region_threshold"]
+	if !ok {
+		t.Fatal("region_threshold missing from schema")
+	}
+	if !rt.IsComputed() || rt.IsRequired() {
+		t.Error("region_threshold must be Optional+Computed")
+	}
+
+	rw, ok := schemaResp.Schema.Attributes["result_webhook"]
+	if !ok {
+		t.Fatal("result_webhook missing from schema")
+	}
+	if rw.IsComputed() || rw.IsRequired() || !rw.IsSensitive() {
+		t.Error("result_webhook must be Optional+Sensitive (not computed)")
+	}
+
+	iac, ok := schemaResp.Schema.Attributes["iac_locked"]
+	if !ok {
+		t.Fatal("iac_locked must still be present in v1.5.0 (deprecation only)")
+	}
+	const wantDeprecation = "This attribute never had any effect. Remove it from your configuration; it will be dropped in a future major release."
+	if got := tfsdkAttrDeprecation(iac); got != wantDeprecation {
+		t.Errorf("iac_locked deprecation message drifted:\n got: %s\nwant: %s", got, wantDeprecation)
+	}
+}
+
+// tfsdkAttrDeprecation reads the DeprecationMessage off a schema attribute
+// through its description-bearing interface.
+func tfsdkAttrDeprecation(a schema.Attribute) string {
+	type deprecated interface{ GetDeprecationMessage() string }
+	if d, ok := a.(deprecated); ok {
+		return d.GetDeprecationMessage()
+	}
+	return ""
 }

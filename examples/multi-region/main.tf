@@ -52,6 +52,7 @@ resource "quismon_check" "api_multi_region" {
     "eu-central-fra",
     "ap-southeast-sin"
   ]
+  region_threshold = 2
 
   config = {
     url                  = "https://api.example.com/health"

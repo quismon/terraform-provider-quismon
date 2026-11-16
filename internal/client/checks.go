@@ -7,29 +7,32 @@ import (
 
 // Check represents a Quismon health check
 type Check struct {
-	ID                        string                 `json:"id"`
-	OrgID                     string                 `json:"org_id"`
-	Name                      string                 `json:"name"`
-	Type                      string                 `json:"type"`
-	Config                    map[string]interface{} `json:"config"`
-	ConfigHash                string                 `json:"config_hash,omitempty"` // Hash of sensitive fields for drift detection
-	IntervalSeconds           int                    `json:"interval_seconds"`
-	Regions                   []string               `json:"regions"`
-	Enabled                   bool                   `json:"enabled"`
-	Inverted                  bool                   `json:"inverted"` // Alert on success instead of failure
-	SimultaneousRegions       bool                   `json:"simultaneous_regions"`
-	RecheckOnFailure          bool                   `json:"recheck_on_failure"`
-	AlertAfterFirstSuccess    bool                   `json:"alert_after_first_success"`
-	StartsBroken              bool                   `json:"starts_broken"`
-	StartsBrokenArrivalNotice bool                   `json:"starts_broken_arrival_notice"`
-	StartsBrokenDeadlineAt    *string                `json:"starts_broken_deadline_at,omitempty"`
-	ShowOnStatusPage          bool                   `json:"show_on_status_page"`             // Contribute to public status page
-	ExpiresAfterSeconds       *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
-	DependsOn                 []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs
-	HealthStatus              string                 `json:"health_status,omitempty"`
-	LastChecked               *string                `json:"last_checked,omitempty"`
-	CreatedAt                 string                 `json:"created_at"`
-	UpdatedAt                 string                 `json:"updated_at"`
+	ID                          string                 `json:"id"`
+	OrgID                       string                 `json:"org_id"`
+	Name                        string                 `json:"name"`
+	Type                        string                 `json:"type"`
+	Config                      map[string]interface{} `json:"config"`
+	ConfigHash                  string                 `json:"config_hash,omitempty"` // Hash of sensitive fields for drift detection
+	IntervalSeconds             int                    `json:"interval_seconds"`
+	Regions                     []string               `json:"regions"`
+	RegionThreshold             int                    `json:"region_threshold"`
+	Enabled                     bool                   `json:"enabled"`
+	Inverted                    bool                   `json:"inverted"` // Alert on success instead of failure
+	SimultaneousRegions         bool                   `json:"simultaneous_regions"`
+	RecheckOnFailure            bool                   `json:"recheck_on_failure"`
+	AlertAfterFirstSuccess      bool                   `json:"alert_after_first_success"`
+	StartsBroken                bool                   `json:"starts_broken"`
+	StartsBrokenArrivalNotice   bool                   `json:"starts_broken_arrival_notice"`
+	StartsBrokenDeadlineSeconds *int                   `json:"starts_broken_deadline_seconds,omitempty"`
+	StartsBrokenDeadlineAt      *string                `json:"starts_broken_deadline_at,omitempty"`
+	ShowOnStatusPage            bool                   `json:"show_on_status_page"`             // Contribute to public status page
+	ExpiresAfterSeconds         *int                   `json:"expires_after_seconds,omitempty"` // Check auto-deletes after this many seconds
+	ResultWebhook               string                 `json:"result_webhook,omitempty"`        // Per-check result webhook (Q-059)
+	DependsOn                   []string               `json:"depends_on,omitempty"`            // Check IDs that must be healthy before this check runs
+	HealthStatus                string                 `json:"health_status,omitempty"`
+	LastChecked                 *string                `json:"last_checked,omitempty"`
+	CreatedAt                   string                 `json:"created_at"`
+	UpdatedAt                   string                 `json:"updated_at"`
 }
 
 // CreateCheckRequest represents a request to create a check
@@ -39,6 +42,8 @@ type CreateCheckRequest struct {
 	Config                      map[string]interface{} `json:"config"`
 	IntervalSeconds             int                    `json:"interval_seconds"`
 	Regions                     []string               `json:"regions,omitempty"`
+	RegionThreshold             *int                   `json:"region_threshold,omitempty"`
+	ResultWebhook               string                 `json:"result_webhook,omitempty"`
 	Enabled                     bool                   `json:"enabled"`
 	Inverted                    *bool                  `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions         *bool                  `json:"simultaneous_regions,omitempty"`
@@ -59,6 +64,8 @@ type UpdateCheckRequest struct {
 	Config                    *map[string]interface{} `json:"config,omitempty"`
 	IntervalSeconds           *int                    `json:"interval_seconds,omitempty"`
 	Regions                   *[]string               `json:"regions,omitempty"`
+	RegionThreshold           *int                    `json:"region_threshold,omitempty"` // always sent by the resource (anti-bricking; nil only for non-resource callers)
+	ResultWebhook             *string                 `json:"result_webhook,omitempty"`   // pointer-to-empty CLEARS the stored webhook
 	Enabled                   *bool                   `json:"enabled,omitempty"`
 	Inverted                  *bool                   `json:"inverted,omitempty"` // Alert on success instead of failure
 	SimultaneousRegions       *bool                   `json:"simultaneous_regions,omitempty"`

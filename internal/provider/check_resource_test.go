@@ -39,6 +39,36 @@ func TestAccCheckResource(t *testing.T) {
 					resource.TestCheckResourceAttr("quismon_check.test", "config.url", "https://api.example.com/status"),
 				),
 			},
+			// Q-059: multi-region consensus set (threshold 2 of 2), then
+			// lowered to 1 — proves region_threshold round-trips and the
+			// always-send update path re-validates against the API guard.
+			{
+				Config: testAccCheckResourceConfig_regions("test-consensus", 2),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "region_threshold", "2"),
+					resource.TestCheckResourceAttr("quismon_check.test", "regions.#", "2"),
+				),
+			},
+			{
+				Config: testAccCheckResourceConfig_regions("test-consensus", 1),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "region_threshold", "1"),
+				),
+			},
+			// Q-059: result_webhook set, then REMOVED — null-clears semantics
+			// (an explicit empty string is sent; the stored webhook clears).
+			{
+				Config: testAccCheckResourceConfig_webhook("test-hooked", "https://httpbin.org/status/200"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "result_webhook", "https://httpbin.org/status/200"),
+				),
+			},
+			{
+				Config: testAccCheckResourceConfig_https("test-hooked", "https://api.example.com/status"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("quismon_check.test", "result_webhook", ""),
+				),
+			},
 			// Delete testing automatically occurs in TestCase
 		},
 	})
@@ -89,9 +119,9 @@ func TestAccCheckResource_MultiRegion(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("quismon_check.test", "name", "global-api"),
 					resource.TestCheckResourceAttr("quismon_check.test", "regions.#", "3"),
-					resource.TestCheckResourceAttr("quismon_check.test", "regions.0", "us-east-1"),
-					resource.TestCheckResourceAttr("quismon_check.test", "regions.1", "eu-west-1"),
-					resource.TestCheckResourceAttr("quismon_check.test", "regions.2", "ap-southeast-1"),
+					resource.TestCheckResourceAttr("quismon_check.test", "regions.0", "na-east-ewr"),
+					resource.TestCheckResourceAttr("quismon_check.test", "regions.1", "eu-central-fra"),
+					resource.TestCheckResourceAttr("quismon_check.test", "regions.2", "ap-southeast-sin"),
 				),
 			},
 		},
@@ -106,7 +136,7 @@ resource "quismon_check" "test" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     url                  = %[2]q
@@ -126,7 +156,7 @@ resource "quismon_check" "test" {
   interval_seconds = 120
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     host            = %[2]q
@@ -145,7 +175,7 @@ resource "quismon_check" "test" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     host            = %[2]q
@@ -164,7 +194,7 @@ resource "quismon_check" "test" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1", "eu-west-1", "ap-southeast-1"]
+  regions = ["na-east-ewr", "eu-central-fra", "ap-southeast-sin"]
 
   config = {
     url                  = "https://api.example.com/health"
@@ -256,7 +286,7 @@ resource "quismon_check" "test" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config = {
     smtp_host      = "smtp.example.com"
@@ -287,7 +317,7 @@ resource "quismon_check" "test" {
   interval_seconds = 60
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
     url             = "https://api.example.com/health"
@@ -327,7 +357,7 @@ resource "quismon_check" "test" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
     domain        = "internetsociety.org"
@@ -364,7 +394,7 @@ resource "quismon_check" "test" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
     domain        = "dnssec.works"
@@ -402,7 +432,7 @@ resource "quismon_check" "test" {
   interval_seconds = 300
   enabled          = true
 
-  regions = ["us-east-1"]
+  regions = ["na-east-ewr"]
 
   config_json = jsonencode({
     steps = [
@@ -432,4 +462,51 @@ resource "quismon_check" "test" {
   })
 }
 `, name)
+}
+
+// testAccCheckResourceConfig_regions builds a 2-region check with the given
+// region_threshold (Q-059 acceptance).
+func testAccCheckResourceConfig_regions(name string, threshold int) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "https"
+  interval_seconds = 60
+  enabled          = true
+
+  regions          = ["na-east-ewr", "eu-central-fra"]
+  region_threshold = %[2]d
+
+  config = {
+    url                  = "https://api.example.com/status"
+    method               = "GET"
+    expected_status      = "200"
+    timeout_seconds      = "10"
+  }
+}
+`, name, threshold)
+}
+
+// testAccCheckResourceConfig_webhook builds a check with a result_webhook
+// (Q-059 acceptance).
+func testAccCheckResourceConfig_webhook(name, webhook string) string {
+	return fmt.Sprintf(`
+resource "quismon_check" "test" {
+  name             = %[1]q
+  type             = "https"
+  interval_seconds = 60
+  enabled          = true
+
+  regions = ["na-east-ewr"]
+
+  result_webhook = %[2]q
+
+  config = {
+    url                  = "https://api.example.com/status"
+    method               = "GET"
+    expected_status      = "200"
+    timeout_seconds      = "10"
+  }
+}
+`, name, webhook)
 }

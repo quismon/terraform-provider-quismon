@@ -21,6 +21,7 @@ Fetches a Quismon check by name.
 
 ### Read-Only
 
+- `region_threshold` (Number) Multi-region consensus threshold (>= N of M regions must fail for the check to be unhealthy).
 - `health_status` (String) Health status.
 - `id` (String) Check ID.
 - `type` (String) Check type.

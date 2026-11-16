@@ -61,6 +61,11 @@ resource "quismon_notification_channel" "ntfy" {
 # Production API Check
 resource "quismon_check" "api" {
   name             = "Production API"
+
+  # Per-check result webhook: every result POSTs here (fire-once,
+  # unsigned, per-region ~8.6k POSTs/day at 60s x 6 regions - provision
+  # the endpoint accordingly). Removing this attribute CLEARS the webhook.
+  # result_webhook = "https://ops.example.com/quismon/results?token=CHANGE_ME"
   type             = "https"
   interval_seconds = 60
   enabled          = true

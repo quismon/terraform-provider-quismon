@@ -39,6 +39,10 @@ func (d *checkDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 				Description: "Check type.",
 				Computed:    true,
 			},
+			"region_threshold": schema.Int64Attribute{
+				Description: "Multi-region consensus threshold (>= N of M regions must fail for the check to be unhealthy).",
+				Computed:    true,
+			},
 			"health_status": schema.StringAttribute{
 				Description: "Health status.",
 				Computed:    true,
@@ -57,10 +61,11 @@ func (d *checkDataSource) Configure(_ context.Context, req datasource.ConfigureR
 
 func (d *checkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data struct {
-		Name         types.String `tfsdk:"name"`
-		ID           types.String `tfsdk:"id"`
-		Type         types.String `tfsdk:"type"`
-		HealthStatus types.String `tfsdk:"health_status"`
+		Name            types.String `tfsdk:"name"`
+		ID              types.String `tfsdk:"id"`
+		Type            types.String `tfsdk:"type"`
+		RegionThreshold types.Int64  `tfsdk:"region_threshold"`
+		HealthStatus    types.String `tfsdk:"health_status"`
 	}
 
 	diags := req.Config.Get(ctx, &data)
@@ -77,6 +82,7 @@ func (d *checkDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 	data.ID = types.StringValue(check.ID)
 	data.Type = types.StringValue(check.Type)
+	data.RegionThreshold = types.Int64Value(int64(check.RegionThreshold))
 	data.HealthStatus = types.StringValue(check.HealthStatus)
 
 	diags = resp.State.Set(ctx, &data)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -14,15 +15,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/quismon/terraform-provider-quismon/internal/client"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource                = &checkResource{}
-	_ resource.ResourceWithConfigure   = &checkResource{}
-	_ resource.ResourceWithImportState = &checkResource{}
+	_ resource.Resource                   = &checkResource{}
+	_ resource.ResourceWithConfigure      = &checkResource{}
+	_ resource.ResourceWithImportState    = &checkResource{}
+	_ resource.ResourceWithValidateConfig = &checkResource{}
 )
 
 // NewCheckResource is a helper function to simplify the provider implementation.
@@ -46,6 +49,7 @@ type checkResourceModel struct {
 	ConfigHash                types.String `tfsdk:"config_hash"`
 	IntervalSeconds           types.Int64  `tfsdk:"interval_seconds"`
 	Regions                   types.Set    `tfsdk:"regions"`
+	RegionThreshold           types.Int64  `tfsdk:"region_threshold"`
 	Enabled                   types.Bool   `tfsdk:"enabled"`
 	Inverted                  types.Bool   `tfsdk:"inverted"`
 	SimultaneousRegions       types.Bool   `tfsdk:"simultaneous_regions"`
@@ -56,6 +60,7 @@ type checkResourceModel struct {
 	StartsBrokenDeadline      types.Int64  `tfsdk:"starts_broken_deadline_seconds"`
 	ShowOnStatusPage          types.Bool   `tfsdk:"show_on_status_page"`
 	ExpiresAfterSeconds       types.Int64  `tfsdk:"expires_after_seconds"`
+	ResultWebhook             types.String `tfsdk:"result_webhook"`
 	DependsOn                 types.Set    `tfsdk:"check_dependencies"`
 	IaCLocked                 types.Bool   `tfsdk:"iac_locked"`
 	HealthStatus              types.String `tfsdk:"health_status"`
@@ -65,6 +70,37 @@ type checkResourceModel struct {
 }
 
 // Metadata returns the resource type name.
+// ValidateConfig is the PLAN-TIME vehicle for the cross-attribute bound
+// region_threshold <= length(regions) (Q-059, review A-6/M1: in-handler
+// validators run at apply time and cannot back a plan-time guarantee).
+// Never clamps - clamping is a console courtesy, not the contract. When
+// regions are unknown at plan time the check defers and the API's
+// apply-time 400 surfaces verbatim.
+func (r *checkResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var data checkResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if data.RegionThreshold.IsNull() || data.RegionThreshold.IsUnknown() {
+		return
+	}
+	threshold := data.RegionThreshold.ValueInt64()
+	if data.Regions.IsUnknown() || data.Regions.IsNull() {
+		return // defer to apply-time validation
+	}
+	regionCount := int64(len(data.Regions.Elements()))
+	if regionCount == 0 {
+		regionCount = 1 // the schema default resolves one region
+	}
+	if threshold > regionCount {
+		resp.Diagnostics.AddError(
+			"Invalid region_threshold",
+			fmt.Sprintf("region_threshold (%d) cannot exceed the number of regions (%d).", threshold, regionCount),
+		)
+	}
+}
+
 func (r *checkResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_check"
 }
@@ -118,6 +154,18 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				ElementType: types.StringType,
 				Default:     setdefault.StaticValue(types.SetValueMust(types.StringType, []attr.Value{types.StringValue("na-east-ewr")})),
+			},
+			"region_threshold": schema.Int64Attribute{
+				Description: "Multi-region consensus: the check is unhealthy only when at least N of its M regions " +
+					"report failure. Default (and omitted) is 1 - any region fails the check. Must be >= 1 and " +
+					"<= the number of regions (validated against the FINAL region set: free/cafe/adopter premium " +
+					"regions resolve to shared primary regions, which can shrink the count - such shapes surface " +
+					"the API's apply-time error). ALWAYS sent on update: removing the attribute from " +
+					"configuration resets the threshold to 1 (codify your threshold first when upgrading).",
+				Optional:   true,
+				Computed:   true,
+				Default:    int64default.StaticInt64(1),
+				Validators: []validator.Int64{int64validator.AtLeast(1)},
 			},
 			"enabled": schema.BoolAttribute{
 				Description: "Whether the check is enabled.",
@@ -187,11 +235,22 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					ExpiresAfterSecondsModifier(),
 				},
 			},
+			"result_webhook": schema.StringAttribute{
+				Description: "Per-check result webhook: every result (success and failure, per region) POSTs " +
+					"to this URL. Delivery is fire-once per result with no signature and no redelivery; " +
+					"responses >= 400 are log-only. Absolute http(s) URL (tier-dependent private-address " +
+					"rules are enforced server-side). May embed a token - treat as secret. REMOVING this " +
+					"attribute clears the stored webhook (an explicit empty string is sent).",
+				Optional:   true,
+				Sensitive:  true,
+				Validators: []validator.String{resultWebhookValidator{}},
+			},
 			"iac_locked": schema.BoolAttribute{
-				Description: "If true, this check can only be modified via API (prevents web UI changes).",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
+				DeprecationMessage: "This attribute never had any effect. Remove it from your configuration; it will be dropped in a future major release.",
+				Description:        "Deprecated: never had any effect (nothing was transmitted or enforced). Remove it from your configuration.",
+				Optional:           true,
+				Computed:           true,
+				Default:            booldefault.StaticBool(false),
 			},
 			"health_status": schema.StringAttribute{
 				Description: "Current health status: healthy, unhealthy, or unknown.",
@@ -315,6 +374,8 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Config:                    configMap,
 		IntervalSeconds:           int(plan.IntervalSeconds.ValueInt64()),
 		Regions:                   regions,
+		RegionThreshold:           regionThresholdPtr(plan.RegionThreshold),
+		ResultWebhook:             plan.ResultWebhook.ValueString(),
 		Enabled:                   plan.Enabled.ValueBool(),
 		Inverted:                  plan.Inverted.ValueBoolPointer(),
 		SimultaneousRegions:       plan.SimultaneousRegions.ValueBoolPointer(),
@@ -353,6 +414,12 @@ func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.Inverted = types.BoolValue(check.Inverted)
 	plan.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	plan.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	plan.RegionThreshold = types.Int64Value(int64(check.RegionThreshold))
+	if check.ResultWebhook != "" {
+		plan.ResultWebhook = types.StringValue(check.ResultWebhook)
+	} else {
+		plan.ResultWebhook = types.StringNull()
+	}
 	plan.AlertAfterFirstSuccess = types.BoolValue(check.AlertAfterFirstSuccess)
 	plan.StartsBroken = types.BoolValue(check.StartsBroken)
 	plan.StartsBrokenArrivalNotice = types.BoolValue(check.StartsBrokenArrivalNotice)
@@ -425,6 +492,7 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Inverted = types.BoolValue(check.Inverted)
 	state.SimultaneousRegions = types.BoolValue(check.SimultaneousRegions)
 	state.RecheckOnFailure = types.BoolValue(check.RecheckOnFailure)
+	state.RegionThreshold = types.Int64Value(int64(check.RegionThreshold))
 	state.AlertAfterFirstSuccess = types.BoolValue(check.AlertAfterFirstSuccess)
 	state.StartsBroken = types.BoolValue(check.StartsBroken)
 	state.StartsBrokenArrivalNotice = types.BoolValue(check.StartsBrokenArrivalNotice)
@@ -439,6 +507,11 @@ func (r *checkResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		state.ExpiresAfterSeconds = types.Int64Value(int64(*check.ExpiresAfterSeconds))
 	} else {
 		state.ExpiresAfterSeconds = types.Int64Null()
+	}
+	if check.ResultWebhook != "" {
+		state.ResultWebhook = types.StringValue(check.ResultWebhook)
+	} else {
+		state.ResultWebhook = types.StringNull()
 	}
 
 	// Regions are non-sensitive and must be tracked for drift detection
@@ -554,11 +627,19 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	showOnStatusPage := plan.ShowOnStatusPage.ValueBool()
 
 	updateReq := client.UpdateCheckRequest{
-		Name:                &name,
-		Type:                &checkType,
-		Config:              &configMap,
-		IntervalSeconds:     &intervalSeconds,
-		Regions:             &regions,
+		Name:            &name,
+		Type:            &checkType,
+		Config:          &configMap,
+		IntervalSeconds: &intervalSeconds,
+		Regions:         &regions,
+		// ALWAYS sent (Q-059 anti-bricking): a concrete pointer keeps the
+		// server's threshold-vs-final-regions guard on every update path;
+		// omitting it would preserve a stored threshold that a regions
+		// shrink just invalidated (the 2026-10-27 bricking class).
+		RegionThreshold: regionThresholdPtr(plan.RegionThreshold),
+		// null CLEARS: pointer-to-empty is the API's documented clear
+		// semantics; nil would preserve and make the webhook unremovable.
+		ResultWebhook:       resultWebhookPtr(plan.ResultWebhook),
 		Enabled:             &enabled,
 		Inverted:            &inverted,
 		SimultaneousRegions: &simultaneousRegions,

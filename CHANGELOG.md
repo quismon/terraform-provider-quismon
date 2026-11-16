@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - Unreleased
+
+### Added
+
+- **`quismon_check.region_threshold`** — multi-region consensus (a check is
+  unhealthy only when >= N of its M regions fail; default 1). Optional +
+  Computed with default 1 and ALWAYS sent on update. This closes a live
+  defect: the API's own Terraform export and `opentofu-examples/multi-region`
+  already emitted `region_threshold`, which the published provider rejected
+  as an unsupported argument (export → apply was broken).
+- **`quismon_check.result_webhook`** — per-check result webhook (Sensitive).
+  Removing the attribute from configuration CLEARS the stored webhook.
+  Also emitted by the API's Terraform export as of this release.
+- `quismon_check` / `quismon_checks` data sources: `region_threshold`.
+
+### Deprecated
+
+- **`quismon_check.iac_locked`** — this attribute never had any effect
+  (nothing was transmitted or enforced by the platform). Remove it from
+  your configuration; it will be dropped in a future major release.
+
+### Upgrade notes (READ BEFORE `terraform apply`)
+
+- **Console-set region thresholds reset to 1 on the first apply after
+  upgrading** (always-send semantics): codify your threshold in
+  configuration first if you rely on a console-set value > 1.
+- **A config that does not set `result_webhook` will CLEAR a console-set
+  webhook on the first apply after upgrading** (null-clears semantics):
+  codify the webhook in configuration first if you rely on one.
+
+### Fixed
+
+- Acceptance tests: stale invalid region keys (`us-east-1`-style) replaced
+  with real region keys so `TF_ACC` runs are possible at all.
+
 ## [1.4.2] - 2026-11-06
 
 ### Fixed

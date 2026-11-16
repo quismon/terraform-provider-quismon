@@ -1,7 +1,12 @@
 package provider
 
 import (
+	"context"
 	"fmt"
+	"net/url"
+
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"strconv"
 	"strings"
 )
@@ -351,4 +356,63 @@ func validateDomExpectedText(configMap map[string]interface{}) error {
 		return fmt.Errorf("dom 'expected_text' must be a string or an array of strings")
 	}
 	return nil
+}
+
+// resultWebhookValidator performs the PLAN-TIME scheme preflight for
+// result_webhook (Q-059): non-empty values must parse as absolute http(s)
+// URLs. Nothing stronger — the tier-dependent private-network and dogfood
+// SSRF rules are server-owned (the API's 400 names them; the provider
+// cannot know the org's tier).
+type resultWebhookValidator struct{}
+
+func (resultWebhookValidator) Description(_ context.Context) string {
+	return "must be an absolute http(s) URL when set"
+}
+
+func (resultWebhookValidator) MarkdownDescription(ctx context.Context) string {
+	return resultWebhookValidator{}.Description(ctx)
+}
+
+func (resultWebhookValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() || req.ConfigValue.ValueString() == "" {
+		// null/empty is legal: null CLEARS the stored webhook on update
+		return
+	}
+	u, err := url.Parse(req.ConfigValue.ValueString())
+	if err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" {
+		resp.Diagnostics.AddError(
+			"Invalid result_webhook",
+			fmt.Sprintf("result_webhook must be an absolute http(s) URL, got: %q", req.ConfigValue.ValueString()),
+		)
+	}
+}
+
+// regionThresholdPtr resolves the ALWAYS-SEND value for region_threshold
+// (Q-059): null/unknown (should not happen with the schema default) falls
+// back to 1 — the API create default — so every update carries a concrete
+// pointer and the server's threshold-vs-final-regions guard always runs.
+func regionThresholdPtr(v types.Int64) *int {
+	if v.IsNull() || v.IsUnknown() {
+		one := 1
+		return &one
+	}
+	n := int(v.ValueInt64())
+	if n < 1 {
+		one := 1
+		return &one
+	}
+	return &n
+}
+
+// resultWebhookPtr implements null-CLEARS (Q-059): a null/unknown attribute
+// sends an explicit empty string — the API's documented clear semantics —
+// so removing the attribute from configuration removes the webhook. A nil
+// pointer would preserve the stored value and make it unremovable (and its
+// drift invisible).
+func resultWebhookPtr(v types.String) *string {
+	s := ""
+	if !v.IsNull() && !v.IsUnknown() {
+		s = v.ValueString()
+	}
+	return &s
 }

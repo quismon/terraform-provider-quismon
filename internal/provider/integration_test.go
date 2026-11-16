@@ -183,7 +183,7 @@ resource "quismon_check" "api" {
   type             = "https"
   interval_seconds = 60
   enabled          = true
-  regions          = ["us-east-1", "eu-west-1"]
+  regions          = ["na-east-ewr", "eu-central-fra"]
 
   config = {
     url                  = "https://api.example.com/health"
@@ -198,7 +198,7 @@ resource "quismon_check" "database" {
   type             = "tcp"
   interval_seconds = 120
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     host            = "db.example.com"
@@ -212,7 +212,7 @@ resource "quismon_check" "gateway" {
   type             = "ping"
   interval_seconds = 300
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     host            = "192.168.1.1"
@@ -284,7 +284,7 @@ resource "quismon_check" "test" {
   type             = "http"
   interval_seconds = 60
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     url                  = "http://example.com"
@@ -303,7 +303,7 @@ resource "quismon_check" "test" {
   type             = "https"
   interval_seconds = 60
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     url                  = "https://api.example.com"
@@ -326,7 +326,7 @@ resource "quismon_check" "test" {
   type             = "tcp"
   interval_seconds = 90
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     host            = "localhost"
@@ -344,7 +344,7 @@ resource "quismon_check" "test" {
   type             = "ping"
   interval_seconds = 180
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     host            = "8.8.8.8"
@@ -362,7 +362,7 @@ resource "quismon_check" "test" {
   type             = "https"
   interval_seconds = 60
   enabled          = true
-  regions          = ["us-east-1"]
+  regions          = ["na-east-ewr"]
 
   config = {
     url                  = "https://api.example.com"

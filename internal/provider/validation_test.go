@@ -1,6 +1,12 @@
 package provider
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
 
 // Table-driven tests for validateDomConfig: the plan-time gate for dom
 // checks. Mirrors the API's write-time contract (url-or-script, 16KB cap) so
@@ -170,4 +176,67 @@ func indexOf(haystack, needle string) int {
 		}
 	}
 	return -1
+}
+
+// --- Q-059: result_webhook scheme preflight (plan-time) ---
+
+func TestResultWebhookValidator(t *testing.T) {
+	type tc struct {
+		name    string
+		value   string
+		null    bool
+		wantErr bool
+	}
+	cases := []tc{
+		{"null passes (clears on update)", "", true, false},
+		{"empty passes (clears on update)", "", false, false},
+		{"https passes", "https://ops.example.com/hook", false, false},
+		{"http passes", "http://intranet.local/hook", false, false},
+		{"token-in-query passes (scheme is the only provider rule)", "https://ops.example.com/h?token=abc", false, false},
+		{"ftp rejected", "ftp://ops.example.com/hook", false, true},
+		{"relative rejected", "/hook", false, true},
+		{"no host rejected", "https://", false, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			v := resultWebhookValidator{}
+			var cv types.String
+			if c.null {
+				cv = types.StringNull()
+			} else {
+				cv = types.StringValue(c.value)
+			}
+			resp := &validator.StringResponse{}
+			v.ValidateString(context.Background(), validator.StringRequest{ConfigValue: cv}, resp)
+			if c.wantErr && !resp.Diagnostics.HasError() {
+				t.Errorf("expected error for %q", c.value)
+			}
+			if !c.wantErr && resp.Diagnostics.HasError() {
+				t.Errorf("unexpected error for %q", c.value)
+			}
+		})
+	}
+}
+
+// --- Q-059: regionThresholdPtr / resultWebhookPtr contract helpers ---
+
+func TestRegionThresholdPtrAlwaysConcrete(t *testing.T) {
+	if got := *regionThresholdPtr(types.Int64Null()); got != 1 {
+		t.Errorf("null -> %d, want 1 (create default)", got)
+	}
+	if got := *regionThresholdPtr(types.Int64Value(3)); got != 3 {
+		t.Errorf("3 -> %d, want 3", got)
+	}
+	if got := *regionThresholdPtr(types.Int64Value(0)); got != 1 {
+		t.Errorf("0 -> %d, want clamp-to-1", got)
+	}
+}
+
+func TestResultWebhookPtrClearsOnNull(t *testing.T) {
+	if got := *resultWebhookPtr(types.StringNull()); got != "" {
+		t.Errorf("null -> %q, want empty (clears)", got)
+	}
+	if got := *resultWebhookPtr(types.StringValue("https://x.example.com")); got != "https://x.example.com" {
+		t.Errorf("value -> %q", got)
+	}
 }
