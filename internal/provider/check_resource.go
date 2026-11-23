@@ -126,7 +126,7 @@ func (r *checkResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Required:    true,
 			},
 			"type": schema.StringAttribute{
-				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom (alias: render).",
+				Description: "Check type: http, https, tcp, ping, udp, dns, dnssec, ssl, multistep, smtp-imap, throughput, http3, spf, dkim, dmarc, playwright, traceroute, dom (alias: render). CREATE-ONLY: the API ignores type on update — changing it forces provider replacement.",
 				Required:    true,
 			},
 			"config": schema.MapAttribute{
@@ -618,7 +618,6 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Update the check
 	name := plan.Name.ValueString()
-	checkType := plan.Type.ValueString()
 	intervalSeconds := int(plan.IntervalSeconds.ValueInt64())
 	enabled := plan.Enabled.ValueBool()
 	inverted := plan.Inverted.ValueBool()
@@ -626,9 +625,10 @@ func (r *checkResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	recheckOnFailure := plan.RecheckOnFailure.ValueBool()
 	showOnStatusPage := plan.ShowOnStatusPage.ValueBool()
 
+	// Q-061: type is CREATE-ONLY — the API's UpdateCheckRequest drops it, so
+	// sending it produced perpetual refresh-revert diffs on type changes.
 	updateReq := client.UpdateCheckRequest{
 		Name:            &name,
-		Type:            &checkType,
 		Config:          &configMap,
 		IntervalSeconds: &intervalSeconds,
 		Regions:         &regions,
